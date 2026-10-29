@@ -73,7 +73,7 @@ class CouponView extends StatelessWidget {
     );
   }
 
-  Widget _head(AppColors c, Map l, String st, bool slotted, bool dense) {
+  Widget _label(AppColors c, String top, String sub, String st) {
     Color bg, fg;
     if (st == 'h') {
       bg = c.ac;
@@ -85,16 +85,38 @@ class CouponView extends StatelessWidget {
       bg = c.ln;
       fg = c.tx;
     }
-    final r = l['r'] ?? '';
-    final top = slotted ? '${((l['slot'] as num?) ?? 0).toInt() + 1}. At' : '$r. Koşu';
-    final sub = slotted ? '$r. Koşu' : '${l['t'] ?? ''}';
     return Container(
+      width: 74,
       color: bg,
-      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        FittedBox(fit: BoxFit.scaleDown, child: Text(top, maxLines: 1, style: jakarta(dense ? 10.5 : 12, FontWeight.w800, fg))),
-        if (sub.isNotEmpty) FittedBox(fit: BoxFit.scaleDown, child: Text(sub, maxLines: 1, style: jakarta(dense ? 9.5 : 10.5, FontWeight.w600, fg.withAlpha(220)))),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        FittedBox(fit: BoxFit.scaleDown, child: Text(top, maxLines: 1, style: jakarta(12, FontWeight.w800, fg))),
+        if (sub.isNotEmpty) FittedBox(fit: BoxFit.scaleDown, child: Text(sub, maxLines: 1, style: jakarta(10, FontWeight.w600, fg.withAlpha(220)))),
       ]),
+    );
+  }
+
+  /// Yatay satır: solda koşu/at etiketi, yanında numaralar yan yana (sığmazsa alta kıvrılır), sağda tuttu/yattı işareti.
+  Widget _row(AppColors c, String top, String sub, String st, List<int> picks, String Function(int) chipSt, double chipS, {Widget? extra, bool showMark = false}) {
+    return Container(
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))),
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _label(c, top, sub, st),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                picks.isEmpty
+                    ? Text('—', style: jakarta(13, FontWeight.w700, c.mu))
+                    : Wrap(spacing: 5, runSpacing: 5, children: [for (final n in picks) _chip(c, n, chipSt(n), chipS)]),
+                if (extra != null) extra,
+              ]),
+            ),
+          ),
+          if (showMark) Padding(padding: const EdgeInsets.only(right: 8), child: Center(child: _mark(c, st))),
+        ]),
+      ),
     );
   }
 
@@ -114,7 +136,6 @@ class CouponView extends StatelessWidget {
     final misli = ((cp['misli'] as num?) ?? 1).toInt();
     final bf = birimFiyat((cp['type'] ?? '').toString(), (cp['city'] ?? '').toString());
     final dense = cols >= 5;
-    const wide = false; // numaralar her zaman alt alta
     final sts = [for (final l in legs) legSt(cp, l)];
     final settled = sts.any((x) => x != 'p');
     final res0 = legs.isNotEmpty ? legResOf(cp, legs.first) : null;
@@ -140,14 +161,10 @@ class CouponView extends StatelessWidget {
         ]),
       );
     } else if (cols == 1 && _maps(legs[0]['sets']).length >= 2) {
-      // İkili / Plase İkili / Tabela: "1. AT", "2. AT"… sütunları ayrı ayrı, seçilen atlar altlarında
+      // İkili / Plase İkili / Tabela: her "n. AT" ayrı satır, numaralar yan yana
       final l = legs[0];
       final sets0 = _maps(l['sets']);
-      final multi = sets0.length >= 2;
-      // sekmeli (1. AT, 2. AT…) kuponda sütun başına liste; virgüllü / tek kolonda tek liste
-      final lists = multi
-          ? [for (final m in sets0) ((m['p'] as List?) ?? const []).whereType<num>().map((e) => e.toInt()).toList()]
-          : [((l['picks'] as List?) ?? const []).whereType<num>().map((e) => e.toInt()).toList()];
+      final lists = [for (final m in sets0) ((m['p'] as List?) ?? const []).whereType<num>().map((e) => e.toInt()).toList()];
       final top = legTop(cp, l);
       final pend = sts[0] == 'p';
       final hit = sts[0] == 'h';
@@ -157,124 +174,52 @@ class CouponView extends StatelessWidget {
         return hit ? 'dim' : 'miss';
       }
 
-      Widget col(int i) {
-        final pk = lists[i];
-        return Expanded(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            if (multi)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                decoration: BoxDecoration(color: c.ln.withAlpha(90), border: Border(top: BorderSide(color: c.ln))),
-                child: Center(child: Text('${i + 1}. AT', style: jakarta(lists.length > 2 ? 11 : 12, FontWeight.w800, c.tx))),
-              ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: pk.isEmpty
-                  ? Text('—', style: jakarta(13, FontWeight.w700, c.mu))
-                  : Column(mainAxisSize: MainAxisSize.min, children: [
-                      for (final n in pk) Padding(padding: const EdgeInsets.only(bottom: 6), child: _chip(c, n, chipSt(n), lists.length > 2 ? 26 : 28)),
-                    ]),
-            ),
-            if (!pend)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))),
-                child: Center(child: _mark(c, sts[0])),
-              ),
-          ]),
-        );
-      }
-
       body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _head(c, l, sts[0], false, false),
-        IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            for (var i = 0; i < lists.length; i++) ...[
-              if (i > 0) VerticalDivider(width: 1, thickness: 1, color: c.ln),
-              col(i),
-            ],
-          ]),
-        ),
+        for (var i = 0; i < lists.length; i++)
+          _row(c, '${i + 1}. AT', i == 0 ? '${l['r'] ?? ''}. Koşu' : '', sts[0], lists[i], chipSt, 28, showMark: !pend && i == 0),
       ]);
     } else if (cols > 0) {
-      final chipS = dense ? 24.0 : 28.0;
-      body = Table(
-        border: TableBorder(verticalInside: BorderSide(color: c.ln)),
-        children: [
-          TableRow(children: [for (var i = 0; i < cols; i++) _head(c, legs[i], sts[i], slotted, dense)]),
-          TableRow(children: [
-            for (var i = 0; i < cols; i++)
-              Builder(builder: (_) {
-                final l = legs[i];
-                final picks = ((l['picks'] as List?) ?? const []).whereType<num>().map((e) => e.toInt()).toList();
-                final top = legTop(cp, l);
-                final res = legResOf(cp, l);
-                final pend = sts[i] == 'p';
-                String chipSt(int n) {
-                  if (pend) return 'p';
-                  if (top.contains(n)) return (rule == 'gp' && res != null && res.isNotEmpty && res.first != n) ? 'pl' : 'win';
-                  return sts[i] == 'h' ? 'dim' : 'miss';
-                }
-
-                if (picks.isEmpty) return Padding(padding: const EdgeInsets.all(12), child: Center(child: Text('—', style: jakarta(13, FontWeight.w700, c.mu))));
-                if (wide) {
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
-                    child: Wrap(alignment: WrapAlignment.center, spacing: 6, runSpacing: 6, children: [for (final n in picks) _chip(c, n, chipSt(n), chipS)]),
-                  );
-                }
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    for (final n in picks) Padding(padding: const EdgeInsets.only(bottom: 6), child: _chip(c, n, chipSt(n), chipS)),
-                  ]),
-                );
-              }),
-          ]),
-          if (settled)
-            TableRow(decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))), children: [
-              for (var i = 0; i < cols; i++) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Center(child: _mark(c, sts[i]))),
-            ]),
-        ],
-      );
-    }
-
-    // Gerçek sıralama (sütunlu çok ayaklı kuponlarda)
-    Widget real = const SizedBox.shrink();
-    if (virN == 0 && !slotted && settled && cols > 1) {
+      // Her koşu bir satır: "2. Koşu  [1] [3] [4] ..." — çok at olsa da kart uzamaz
+      final chipS = dense ? 26.0 : 28.0;
+      final showReal = virN == 0 && !slotted && settled && cols > 1;
       final realN = rule == 'win' ? 1 : rule == 'any2' ? 2 : rule == 'any4' ? 4 : rule == 'pl2' ? 3 : 2;
       final sameDay = (cp['iso'] ?? '').toString() == TjkStore.i.iso;
-      real = Container(
-        width: double.infinity,
-        decoration: BoxDecoration(color: c.sf, border: Border(top: BorderSide(color: c.ln))),
-        padding: const EdgeInsets.only(top: 8, bottom: 6),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(padding: const EdgeInsets.only(left: 12, bottom: 4), child: Text('Gerçek sıralama', style: jakarta(11, FontWeight.w700, c.mu))),
-          Row(children: [
-            for (final l in legs)
-              Expanded(
-                child: Builder(builder: (_) {
-                  final r = legResOf(cp, l);
-                  if (r == null || r.isEmpty) return Center(child: Text('—', style: jakarta(13, FontWeight.w700, c.mu)));
-                  final rn = (l['r'] as num?)?.toInt() ?? 0;
-                  String? g;
-                  if (rule == 'win' && sameDay) {
-                    final byRace = TjkStore.i.results[(cp['city'] ?? '').toString()];
-                    final rr = byRace == null ? null : byRace[rn];
-                    if (rr != null) g = rr.gny[r.first];
-                  }
-                  return Column(mainAxisSize: MainAxisSize.min, children: [
-                    FittedBox(fit: BoxFit.scaleDown, child: Text(r.take(realN).join(' · '), style: jakarta(14, FontWeight.w800, c.tx))),
-                    if (g != null && g.isNotEmpty) Text(g, style: jakarta(10.5, FontWeight.w700, c.mu)),
-                  ]);
-                }),
-              ),
-          ]),
-        ]),
-      );
+      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (var i = 0; i < cols; i++)
+          Builder(builder: (_) {
+            final l = legs[i];
+            final picks = ((l['picks'] as List?) ?? const []).whereType<num>().map((e) => e.toInt()).toList();
+            final top = legTop(cp, l);
+            final res = legResOf(cp, l);
+            final pend = sts[i] == 'p';
+            String chipSt(int n) {
+              if (pend) return 'p';
+              if (top.contains(n)) return (rule == 'gp' && res != null && res.isNotEmpty && res.first != n) ? 'pl' : 'win';
+              return sts[i] == 'h' ? 'dim' : 'miss';
+            }
+
+            Widget? extra;
+            if (showReal && res != null && res.isNotEmpty) {
+              final rn = (l['r'] as num?)?.toInt() ?? 0;
+              String? g;
+              if (rule == 'win' && sameDay) {
+                final byRace = TjkStore.i.results[(cp['city'] ?? '').toString()];
+                final rr = byRace == null ? null : byRace[rn];
+                if (rr != null) g = rr.gny[res.first];
+              }
+              extra = Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('Sıralama: ${res.take(realN).join(' · ')}${g != null && g.isNotEmpty ? '  ($g)' : ''}', style: jakarta(11, FontWeight.w700, c.mu)),
+              );
+            }
+            final top1 = slotted ? '${((l['slot'] as num?) ?? 0).toInt() + 1}. At' : '${l['r'] ?? ''}. Koşu';
+            final sub1 = slotted ? '${l['r'] ?? ''}. Koşu' : '${l['t'] ?? ''}';
+            return _row(c, top1, sub1, sts[i], picks, chipSt, chipS, extra: extra, showMark: settled);
+          }),
+      ]);
     }
+
+    const real = SizedBox.shrink(); // sıralama artık her koşu satırının içinde
 
     final order = showOrder
         ? Container(
