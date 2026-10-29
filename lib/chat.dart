@@ -157,6 +157,37 @@ class _ChatSheetState extends State<_ChatSheet> {
     );
   }
 
+  // Yönetici: tüm sohbet mesajlarını sil
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sohbeti temizle'),
+        content: const Text('Tüm mesajlar herkes için silinecek. Bu geri alınamaz.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Temizle', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      while (true) {
+        final q = await _db.collection('chat').limit(400).get();
+        if (q.docs.isEmpty) break;
+        final b = _db.batch();
+        for (final d in q.docs) {
+          b.delete(d.reference);
+        }
+        await b.commit();
+        if (q.docs.length < 400) break;
+      }
+      _toast('Sohbet temizlendi');
+    } catch (e) {
+      _toast(AuthService.errorText(e));
+    }
+  }
+
   Widget _list() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _s,
@@ -229,6 +260,16 @@ class _ChatSheetState extends State<_ChatSheet> {
           const SizedBox(width: 16),
           Text('Sohbet', style: jakarta(18, FontWeight.w800, c.tx)),
           const Spacer(),
+          ValueListenableBuilder<bool>(
+            valueListenable: isAdminNotifier,
+            builder: (context, admin, _) => admin
+                ? TextButton.icon(
+                    onPressed: _clearAll,
+                    icon: Icon(Icons.delete_sweep_rounded, size: 20, color: c.red),
+                    label: Text('Temizle', style: jakarta(13, FontWeight.w800, c.red)),
+                  )
+                : const SizedBox.shrink(),
+          ),
           IconButton(onPressed: () => Navigator.pop(context), icon: Icon(Icons.close, color: c.mu)),
         ]),
         Expanded(child: _listW),
