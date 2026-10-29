@@ -241,7 +241,7 @@ class TopBar extends StatelessWidget {
           const SizedBox(width: 8),
           IconBox(
             icon: isDark ? Icons.wb_sunny_outlined : Icons.dark_mode_outlined,
-            onTap: () => themeMode.value = isDark ? ThemeMode.light : ThemeMode.dark,
+            onTap: () => setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark),
           ),
           const SizedBox(width: 8),
           NotifBell(onTap: onBell),
@@ -440,11 +440,11 @@ class AppDrawer extends StatelessWidget {
                     _DrawerRow(
                       icon: Icons.wb_sunny_outlined,
                       label: 'Koyu tema',
-                      onTap: () => themeMode.value = isDark ? ThemeMode.light : ThemeMode.dark,
+                      onTap: () => setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark),
                       trailing: Switch(
                         value: isDark,
                         activeColor: c.ac,
-                        onChanged: (v) => themeMode.value = v ? ThemeMode.dark : ThemeMode.light,
+                        onChanged: (v) => setThemeMode(v ? ThemeMode.dark : ThemeMode.light),
                       ),
                     ),
                     if (isAdminNotifier.value) ...[

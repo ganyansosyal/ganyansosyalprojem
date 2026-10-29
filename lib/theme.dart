@@ -4,6 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.light);
 
+/// Temayı bir sonraki karede değiştir: dokunma tepkisi önce çizilsin, ağır yeniden çizim takılma gibi hissettirmesin.
+void setThemeMode(ThemeMode m) {
+  WidgetsBinding.instance.addPostFrameCallback((_) => themeMode.value = m);
+  WidgetsBinding.instance.scheduleFrame();
+}
+
 class AppColors {
   final Color bg, sf, sf2, tx, mu, ln, ac, on, gold, red;
   const AppColors({
@@ -74,6 +80,11 @@ ThemeData buildTheme(AppColors c, Brightness b) {
   final base = ThemeData(brightness: b, useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: c.bg,
+    // Tema değişince butonlar 200 ms'lik ara renk animasyonu yapmasın (bir kare eski çerçeve kalıyordu)
+    outlinedButtonTheme: OutlinedButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
+    filledButtonTheme: FilledButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
+    textButtonTheme: TextButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
+    elevatedButtonTheme: ElevatedButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
     splashFactory: NoSplash.splashFactory,
     splashColor: Colors.transparent,
     highlightColor: Colors.transparent,
