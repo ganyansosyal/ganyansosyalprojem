@@ -417,11 +417,14 @@ class AppDrawer extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _DrawerRow(icon: Icons.diamond_outlined, label: 'Mağaza', onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopPage()));
-                    }),
-                    Divider(height: 1, color: c.ln),
+                    // Mağaza sadece yöneticiye görünür
+                    if (isAdminNotifier.value) ...[
+                      _DrawerRow(icon: Icons.diamond_outlined, label: 'Mağaza', onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopPage()));
+                      }),
+                      Divider(height: 1, color: c.ln),
+                    ],
                     _DrawerRow(icon: Icons.menu_book_outlined, label: 'Kurallar', onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RulesPage()));

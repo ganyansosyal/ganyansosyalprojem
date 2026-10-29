@@ -1364,9 +1364,14 @@ class _GiftDialogState extends State<_GiftDialog> {
       final r = await _calc();
       final m = await _db.collection('mods').doc(widget.uid).get();
       final gs = await _db.collection('grants').doc(widget.uid).get();
+      final us = await _db.collection('users').doc(widget.uid).get();
+      final owned = ((us.data()?['shop'] as Map?)?['owned'] as List?) ?? const [];
       if (!mounted) return;
       setState(() {
-        _have = {for (final i in ((gs.data()?['frames'] as List?) ?? const [])) '$i'};
+        _have = {
+          for (final i in ((gs.data()?['frames'] as List?) ?? const [])) '$i',
+          for (final i in owned) '$i',
+        };
         _total = r.raw;
         _manual = r.manual;
         _mod = m.exists;
@@ -1448,8 +1453,80 @@ class _GiftDialogState extends State<_GiftDialog> {
         'at': _now(),
         'note': 'Yönetici sana ${f.name} çerçevesini hediye etti',
       }, SetOptions(merge: true));
+      // Mağaza kullanıcıya kapalı olduğu için çerçeveyi doğrudan hesabına işle ve tak
+      await _db.collection('users').doc(widget.uid).update({
+        'shop.owned': FieldValue.arrayUnion([f.id]),
+        'shop.eq': f.id,
+        'frame': f.id,
+      });
       if (mounted) setState(() => _have = {..._have, f.id});
       _t('${f.name} → ${widget.name}');
+    } catch (e) {
+      _t(_err(e));
+    }
+  }
+
+  Future<void> _takeFrame(FrameDef f) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final c = AppColors.of(ctx);
+        return Dialog(
+          backgroundColor: c.sf,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Çerçeveyi geri al', textAlign: TextAlign.center, style: jakarta(20, FontWeight.w800, c.tx)),
+              const SizedBox(height: 10),
+              Text('${widget.name} kullanıcısından ${f.name} çerçevesi alınacak.', textAlign: TextAlign.center, style: jakarta(14.5, FontWeight.w500, c.mu).copyWith(height: 1.35)),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, false),
+                    child: Container(
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln, width: 1.4)),
+                      child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, true),
+                    child: Container(
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(16)),
+                      child: Text('Geri al', style: jakarta(15, FontWeight.w800, Colors.white)),
+                    ),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        );
+      },
+    );
+    if (ok != true) return;
+    try {
+      final ur = _db.collection('users').doc(widget.uid);
+      final us = await ur.get();
+      final sh = (us.data()?['shop'] as Map?) ?? const {};
+      final wasEq = '${sh['eq'] ?? ''}' == f.id || '${us.data()?['frame'] ?? ''}' == f.id;
+      // hediye kaydından da silinmeli, yoksa mağaza açılınca geri eklenir
+      await _db.collection('grants').doc(widget.uid).set({'frames': FieldValue.arrayRemove([f.id])}, SetOptions(merge: true));
+      await ur.update({
+        'shop.owned': FieldValue.arrayRemove([f.id]),
+        if (wasEq) 'shop.eq': '',
+        if (wasEq) 'frame': '',
+      });
+      if (mounted) setState(() => _have = {..._have}..remove(f.id));
+      _t('${f.name} geri alındı: ${widget.name}');
     } catch (e) {
       _t(_err(e));
     }
@@ -1458,9 +1535,9 @@ class _GiftDialogState extends State<_GiftDialog> {
   Widget _frameGrid(AppColors c) => Wrap(spacing: 8, runSpacing: 8, children: [
         for (final f in kFrames)
           GestureDetector(
-            onTap: () => _giveFrame(f),
+            onTap: () => _have.contains(f.id) ? _takeFrame(f) : _giveFrame(f),
             child: Opacity(
-              opacity: _have.contains(f.id) ? 0.55 : 1,
+              opacity: 1,
               child: Container(
                 width: 92,
                 padding: const EdgeInsets.fromLTRB(6, 22, 6, 8),
@@ -1469,7 +1546,7 @@ class _GiftDialogState extends State<_GiftDialog> {
                   Avatar(profile: Profile(uid: widget.uid, name: widget.name, handle: '', frame: f.id), size: 46),
                   const SizedBox(height: 6),
                   Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(11.5, FontWeight.w800, c.tx)),
-                  Text(_have.contains(f.id) ? 'Verildi' : 'Gönder', style: jakarta(11, FontWeight.w800, _have.contains(f.id) ? c.ac : c.mu)),
+                  Text(_have.contains(f.id) ? 'Geri al' : 'Gönder', style: jakarta(11, FontWeight.w800, _have.contains(f.id) ? c.red : c.mu)),
                 ]),
               ),
             ),
