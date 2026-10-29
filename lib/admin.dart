@@ -1808,13 +1808,16 @@ Future<void> toggleBanUser(BuildContext context, String uid, String name) async 
 Future<void> showUserAdminMenu(BuildContext context, {required String uid, required String name, bool targetAdmin = false, VoidCallback? onProfile}) async {
   Map<String, dynamic>? b;
   Profile? pr;
+  bool star = false;
   try {
     final r = await Future.wait([
       FirebaseFirestore.instance.collection('bans').doc(uid).get(),
       AuthService.loadProfile(uid),
+      FirebaseFirestore.instance.collection('users').doc(uid).get(),
     ]);
     b = (r[0] as DocumentSnapshot<Map<String, dynamic>>).data();
     pr = r[1] as Profile?;
+    star = (r[2] as DocumentSnapshot<Map<String, dynamic>>).data()?['star'] == true;
   } catch (_) {}
   if (!context.mounted) return;
   final banned = banActive(b);
@@ -1910,6 +1913,24 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
             Navigator.pop(ctx);
             showDialog(context: context, builder: (_) => _GiftDialog(uid: uid, name: name, targetAdmin: targetAdmin, parent: context));
           }),
+        if (isAdminNotifier.value)
+          tile(
+            star ? Icons.star_rounded : Icons.star_border_rounded,
+            star ? 'Kupon şeridini kapat' : 'Kupon şeridi aç',
+            star ? 'Kupon paylaşınca herkese şerit çıkmasın' : 'Kupon paylaşınca herkesin üstünden şerit kaysın',
+            [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
+            () async {
+              Navigator.pop(ctx);
+              try {
+                await FirebaseFirestore.instance.collection('users').doc(uid).update({'star': !star});
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(SnackBar(content: Text(star ? '$name: kupon şeridi kapatıldı' : '$name: kupon şeridi açıldı')));
+                }
+              } catch (_) {}
+            },
+          ),
         tile(
           banned ? Icons.lock_open_rounded : Icons.block_rounded,
           banned ? 'Yasağı kaldır' : 'Yasakla',

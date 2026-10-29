@@ -6,6 +6,7 @@ import 'leaders.dart';
 import 'notifs.dart';
 import 'profile.dart';
 import 'chat.dart';
+import 'coupon_banner.dart';
 import 'extras.dart';
 import 'predict.dart';
 import 'preload.dart';
@@ -181,6 +182,12 @@ class _ShellState extends State<Shell> {
                 ),
               ),
             ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: MediaQuery.paddingOf(context).top + 8,
+            child: const CouponBanner(),
           ),
         ],
       ),
