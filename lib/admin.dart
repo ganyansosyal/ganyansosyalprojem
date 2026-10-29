@@ -1809,6 +1809,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
   Map<String, dynamic>? b;
   Profile? pr;
   bool star = false;
+  int starEvery = 0;
   try {
     final r = await Future.wait([
       FirebaseFirestore.instance.collection('bans').doc(uid).get(),
@@ -1817,7 +1818,9 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
     ]);
     b = (r[0] as DocumentSnapshot<Map<String, dynamic>>).data();
     pr = r[1] as Profile?;
-    star = (r[2] as DocumentSnapshot<Map<String, dynamic>>).data()?['star'] == true;
+    final ud = (r[2] as DocumentSnapshot<Map<String, dynamic>>).data();
+    star = ud?['star'] == true;
+    starEvery = (ud?['starEvery'] as num?)?.toInt() ?? 0;
   } catch (_) {}
   if (!context.mounted) return;
   final banned = banActive(b);
@@ -1916,17 +1919,48 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
         if (isAdminNotifier.value)
           tile(
             star ? Icons.star_rounded : Icons.star_border_rounded,
-            star ? 'Kupon şeridini kapat' : 'Kupon şeridi aç',
-            star ? 'Kupon paylaşınca herkese şerit çıkmasın' : 'Kupon paylaşınca herkesin üstünden şerit kaysın',
+            'Kupon şeridi',
+            star ? (starEvery > 0 ? 'Açık · her $starEvery dk bir gösterilir' : 'Açık · bir kez gösterilir') : 'Kapalı · kupon paylaşınca şerit çıkmaz',
             [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
             () async {
               Navigator.pop(ctx);
+              final v = await showDialog<int>(
+                context: context,
+                builder: (dctx) {
+                  final dc = AppColors.of(dctx);
+                  Widget opt(String t, int val) => ListTile(
+                        title: Text(t, style: jakarta(14.5, FontWeight.w700, dc.tx)),
+                        trailing: (val == -1 ? !star : (star && starEvery == val)) ? Icon(Icons.check_rounded, color: dc.ac) : null,
+                        onTap: () => Navigator.pop(dctx, val),
+                      );
+                  return Dialog(
+                    backgroundColor: dc.sf,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Kupon şeridi: $name', style: jakarta(16, FontWeight.w800, dc.tx)),
+                        const SizedBox(height: 4),
+                        Text('Ne sıklıkla gösterilsin? (ilk koşu saatine kadar)', style: jakarta(11.5, FontWeight.w600, dc.mu)),
+                        const SizedBox(height: 6),
+                        opt('Kapalı', -1),
+                        opt('Bir kez', 0),
+                        opt('Her 2 dakikada bir', 2),
+                        opt('Her 5 dakikada bir', 5),
+                        opt('Her 10 dakikada bir', 10),
+                        opt('Her 15 dakikada bir', 15),
+                      ]),
+                    ),
+                  );
+                },
+              );
+              if (v == null) return;
               try {
-                await FirebaseFirestore.instance.collection('users').doc(uid).update({'star': !star});
+                await FirebaseFirestore.instance.collection('users').doc(uid).update(v == -1 ? {'star': false} : {'star': true, 'starEvery': v});
                 if (context.mounted) {
                   ScaffoldMessenger.of(context)
                     ..hideCurrentSnackBar()
-                    ..showSnackBar(SnackBar(content: Text(star ? '$name: kupon şeridi kapatıldı' : '$name: kupon şeridi açıldı')));
+                    ..showSnackBar(SnackBar(content: Text(v == -1 ? '$name: kupon şeridi kapatıldı' : '$name: kupon şeridi açıldı')));
                 }
               } catch (_) {}
             },

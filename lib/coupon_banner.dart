@@ -24,10 +24,30 @@ class _Item {
 }
 
 // Aynı kupon aynı oturumda ikinci kez çıkmasın
-final Set<String> _shown = {};
+final Map<String, int> _shown = {};
 
 // Uygulamaya sonradan girenler: son 10 dakikadaki kuponu da görür
 const _freshMs = 10 * 60 * 1000;
+
+// Kuponun en erken koşu saati (ms); bulunamazsa null
+int? _raceStart(Map cp, int ts) {
+  final legs = ((cp['legs'] as List?) ?? const []).whereType<Map>();
+  String iso = (cp['iso'] ?? '').toString();
+  if (iso.isEmpty && ts > 0) {
+    final t = DateTime.fromMillisecondsSinceEpoch(ts);
+    iso = '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  }
+  final day = DateTime.tryParse(iso);
+  if (day == null) return null;
+  int? best;
+  for (final l in legs) {
+    final m = RegExp(r'(\d{1,2})[:.](\d{2})').firstMatch((l['t'] ?? '').toString());
+    if (m == null) continue;
+    final v = DateTime(day.year, day.month, day.day, int.parse(m.group(1)!), int.parse(m.group(2)!)).millisecondsSinceEpoch;
+    if (best == null || v < best) best = v;
+  }
+  return best;
+}
 
 class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderStateMixin {
   final _db = FirebaseFirestore.instance;
@@ -57,6 +77,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       _gotPosts = true;
       _scan();
     }, onError: (_) {});
+    _poll = Timer.periodic(const Duration(seconds: 20), (_) => _scan());
   }
 
   @override
@@ -77,9 +98,17 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       final ts = (m['ts'] as num?)?.toInt() ?? 0;
       if (!_stars.containsKey(uid) || uid == _me) continue;
       if (m['coupon'] is! Map || m['adminHidden'] == true) continue;
-      if (now - ts > _freshMs || _shown.contains(d.id)) continue;
-      _shown.add(d.id);
       final cp = Map<String, dynamic>.from(m['coupon'] as Map);
+      // İlk koşunun saatine kadar göster; saat yoksa 10 dk
+      final start = _raceStart(cp, ts);
+      final live = start != null ? now < start : now - ts <= _freshMs;
+      if (!live) continue;
+      // Admin aralığı (dk): 0 = bir kez, N = her N dakikada bir tekrar
+      final every = (_stars[uid]?['starEvery'] as num?)?.toInt() ?? 0;
+      final last = _shown[d.id];
+      if (last != null && (every <= 0 || now - last < every * 60000)) continue;
+      if (_queue.any((q) => q.postId == d.id) || _cur?.postId == d.id) continue;
+      _shown[d.id] = now;
       final city = (cp['city'] ?? '').toString();
       final type = (cp['type'] ?? '').toString();
       double amt = 0;
