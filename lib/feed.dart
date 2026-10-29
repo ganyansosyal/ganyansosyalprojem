@@ -725,15 +725,51 @@ class PostCard extends StatelessWidget {
     final c = AppColors.of(context);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Dialog(
         backgroundColor: c.sf,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Paylaşımı sil', style: jakarta(15, FontWeight.w800, c.tx)),
-        content: Text('Bu paylaşımı silmek istediğine emin misin?', style: jakarta(13, FontWeight.w500, c.mu)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Vazgeç', style: jakarta(13, FontWeight.w700, c.mu))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Sil', style: jakarta(13, FontWeight.w800, c.red))),
-        ],
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: c.red.withAlpha(30), shape: BoxShape.circle),
+              child: Icon(Icons.delete_outline_rounded, color: c.red, size: 28),
+            ),
+            const SizedBox(height: 14),
+            Text('Paylaşımı sil', textAlign: TextAlign.center, style: jakarta(20, FontWeight.w800, c.tx)),
+            const SizedBox(height: 10),
+            Text('Bu paylaşımı silmek istediğine emin misin? Bu işlem geri alınamaz.', textAlign: TextAlign.center, style: jakarta(14.5, FontWeight.w500, c.mu).copyWith(height: 1.35)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx, false),
+                  child: Container(
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln, width: 1.4)),
+                    child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx, true),
+                  child: Container(
+                    height: 50,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(16)),
+                    child: Text('Sil', style: jakarta(15, FontWeight.w800, Colors.white)),
+                  ),
+                ),
+              ),
+            ]),
+          ]),
+        ),
       ),
     );
     if (ok != true) return;

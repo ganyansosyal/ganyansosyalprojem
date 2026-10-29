@@ -226,11 +226,21 @@ class _ResultsPageState extends State<ResultsPage> {
             const SizedBox(width: 8),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(h.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(12.5, FontWeight.w800, c.tx)),
-              if (h.agf != null) Text('%${h.agf}', style: jakarta(10.5, FontWeight.w600, c.mu)),
+              Row(children: [
+                if (h.agf != null) Text('%${h.agf}', style: jakarta(10.5, FontWeight.w600, c.mu)),
+                if (h.agf != null && s.results[city]?[r]?.gny[no] != null) Text('  ·  ', style: jakarta(10.5, FontWeight.w600, c.mu)),
+                if (s.results[city]?[r]?.gny[no] != null) Text('Gny ${s.results[city]![r]!.gny[no]}', style: jakarta(11, FontWeight.w800, c.ac)),
+              ]),
             ])),
-            if (s.results[city]?[r]?.gny[no] != null)
-              Padding(padding: const EdgeInsets.only(right: 6), child: Text('Gny ${s.results[city]![r]!.gny[no]}', style: jakarta(11, FontWeight.w800, c.ac))),
-            if (vid.isNotEmpty) GestureDetector(onTap: () => _play(city, r, vid), child: Text('İzle', style: jakarta(11, FontWeight.w800, c.red))),
+            if (vid.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _play(city, r, vid),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(Icons.play_circle_fill_rounded, color: c.red, size: 34),
+                ),
+              ),
           ] else
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('$r. koşu', style: jakarta(12.5, FontWeight.w800, c.mu)),

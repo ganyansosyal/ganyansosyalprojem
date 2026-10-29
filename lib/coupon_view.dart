@@ -86,7 +86,7 @@ class CouponView extends StatelessWidget {
       fg = c.tx;
     }
     return Container(
-      width: 74,
+      width: 64,
       color: bg,
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -97,7 +97,7 @@ class CouponView extends StatelessWidget {
   }
 
   /// Yatay satır: solda koşu/at etiketi, yanında numaralar yan yana (sığmazsa alta kıvrılır), sağda tuttu/yattı işareti.
-  Widget _row(AppColors c, String top, String sub, String st, List<int> picks, String Function(int) chipSt, double chipS, {Widget? extra, bool showMark = false}) {
+  Widget _row(AppColors c, String top, String sub, String st, List<int> picks, String Function(int) chipSt, double chipS, {String? side, bool showMark = false}) {
     return Container(
       decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))),
       child: IntrinsicHeight(
@@ -110,11 +110,17 @@ class CouponView extends StatelessWidget {
                 picks.isEmpty
                     ? Text('—', style: jakarta(13, FontWeight.w700, c.mu))
                     : Wrap(spacing: 5, runSpacing: 5, children: [for (final n in picks) _chip(c, n, chipSt(n), chipS)]),
-                if (extra != null) extra,
               ]),
             ),
           ),
-          if (showMark) Padding(padding: const EdgeInsets.only(right: 8), child: Center(child: _mark(c, st))),
+          if (showMark)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _mark(c, st),
+                if (side != null && side.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 3), child: Text(side, maxLines: 1, style: jakarta(11, FontWeight.w700, c.mu))),
+              ]),
+            ),
         ]),
       ),
     );
@@ -198,7 +204,7 @@ class CouponView extends StatelessWidget {
               return sts[i] == 'h' ? 'dim' : 'miss';
             }
 
-            Widget? extra;
+            String? side;
             if (showReal && res != null && res.isNotEmpty) {
               final rn = (l['r'] as num?)?.toInt() ?? 0;
               String? g;
@@ -207,14 +213,11 @@ class CouponView extends StatelessWidget {
                 final rr = byRace == null ? null : byRace[rn];
                 if (rr != null) g = rr.gny[res.first];
               }
-              extra = Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text('Sıralama: ${res.take(realN).join(' · ')}${g != null && g.isNotEmpty ? '  ($g)' : ''}', style: jakarta(11, FontWeight.w700, c.mu)),
-              );
+              side = '${res.take(realN).join(' · ')}${g != null && g.isNotEmpty ? ' · $g' : ''}';
             }
             final top1 = slotted ? '${((l['slot'] as num?) ?? 0).toInt() + 1}. At' : '${l['r'] ?? ''}. Koşu';
             final sub1 = slotted ? '${l['r'] ?? ''}. Koşu' : '${l['t'] ?? ''}';
-            return _row(c, top1, sub1, sts[i], picks, chipSt, chipS, extra: extra, showMark: settled);
+            return _row(c, top1, sub1, sts[i], picks, chipSt, chipS, side: side, showMark: settled);
           }),
       ]);
     }

@@ -416,20 +416,83 @@ class _PredictPageState extends State<PredictPage> {
       context: context,
       builder: (ctx) {
         final col = AppColors.of(ctx);
-        return AlertDialog(
+        return Dialog(
           backgroundColor: col.sf,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Kuponu paylaş', style: jakarta(15, FontWeight.w800, col.tx)),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('${c['city']} · ${c['type']} · ${kolon(c)} kolon · ${money(couponCost(c))}', style: jakarta(12, FontWeight.w600, col.mu)),
-            const SizedBox(height: 8),
-            TextField(controller: ctl, maxLength: 300, maxLines: 3, decoration: const InputDecoration(hintText: 'Yorum ekle (isteğe bağlı)', border: OutlineInputBorder())),
-            Text('Paylaşılan kupon silinemez.', style: jakarta(11, FontWeight.w600, col.red)),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Vazgeç', style: jakarta(13, FontWeight.w700, col.mu))),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Paylaş', style: jakarta(13, FontWeight.w800, col.ac))),
-          ],
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(color: col.ac.withAlpha(30), shape: BoxShape.circle),
+                child: Icon(Icons.share_rounded, color: col.ac, size: 26),
+              ),
+              const SizedBox(height: 14),
+              Text('Kuponu paylaş', textAlign: TextAlign.center, style: jakarta(20, FontWeight.w800, col.tx)),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(color: col.ac.withAlpha(24), borderRadius: BorderRadius.circular(999)),
+                child: Text('${c['city']} · ${c['type']} · ${kolon(c)} kolon · ${money(couponCost(c))}', textAlign: TextAlign.center, style: jakarta(12.5, FontWeight.w800, col.ac)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctl,
+                maxLength: 300,
+                maxLines: 3,
+                style: jakarta(14.5, FontWeight.w500, col.tx),
+                decoration: InputDecoration(
+                  hintText: 'Yorum ekle (isteğe bağlı)',
+                  hintStyle: jakarta(14.5, FontWeight.w500, col.mu),
+                  filled: true,
+                  fillColor: col.sf2,
+                  contentPadding: const EdgeInsets.all(14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: col.ln, width: 1.4)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: col.ln, width: 1.4)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: col.ac, width: 1.6)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: col.red.withAlpha(24), borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  Icon(Icons.info_outline_rounded, color: col.red, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Paylaşılan kupon silinemez.', style: jakarta(12.5, FontWeight.w700, col.red))),
+                ]),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, false),
+                    child: Container(
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: col.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: col.ln, width: 1.4)),
+                      child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, col.tx)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, true),
+                    child: Container(
+                      height: 50,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: col.ac, borderRadius: BorderRadius.circular(16)),
+                      child: Text('Paylaş', style: jakarta(15, FontWeight.w800, col.on)),
+                    ),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
         );
       },
     );
@@ -1112,13 +1175,54 @@ Widget _son6Row(AppColors c, Horse h) {
     ],
     const Spacer(),
     for (final t in h.taki.take(4))
-      Container(
-        margin: const EdgeInsets.only(left: 4, bottom: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-        decoration: BoxDecoration(color: c.ac.withAlpha(22), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.ac.withAlpha(80))),
-        child: Text(t.k, style: jakarta(11.5, FontWeight.w800, c.ac)),
+      Builder(
+        builder: (ctx) => GestureDetector(
+          // kartın "kupona ekle" dokunuşuna düşmesin: takıya basınca açıklama açılır
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _takiInfo(ctx, c, t.k, t.a),
+          child: Container(
+            margin: const EdgeInsets.only(left: 4, bottom: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(color: c.ac.withAlpha(22), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.ac.withAlpha(80))),
+            child: Text(t.k, style: jakarta(11.5, FontWeight.w800, c.ac)),
+          ),
+        ),
       ),
   ]);
+}
+
+void _takiInfo(BuildContext context, AppColors c, String kod, String aciklama) {
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: c.sf,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            decoration: BoxDecoration(color: c.ac.withAlpha(22), borderRadius: BorderRadius.circular(14), border: Border.all(color: c.ac.withAlpha(80))),
+            child: Text(kod, style: jakarta(20, FontWeight.w800, c.ac)),
+          ),
+          const SizedBox(height: 14),
+          Text(aciklama.isNotEmpty ? aciklama : 'Bu takı için açıklama bulunamadı.', textAlign: TextAlign.center, style: jakarta(15, FontWeight.w600, c.tx).copyWith(height: 1.35)),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => Navigator.pop(ctx),
+            child: Container(
+              height: 48,
+              width: double.infinity,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: c.ac, borderRadius: BorderRadius.circular(16)),
+              child: Text('Tamam', style: jakarta(15, FontWeight.w800, c.on)),
+            ),
+          ),
+        ]),
+      ),
+    ),
+  );
 }
 
 Widget _horseDetail(AppColors c, Horse h, String key) {
@@ -1321,9 +1425,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
 
     return Opacity(
       opacity: h.kosmaz ? 0.4 : 1,
-      child: GestureDetector(
-        onTap: () => _tap(h),
-        child: Container(
+      child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -1349,12 +1451,20 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
                   decoration: BoxDecoration(color: _pill(odds.toDouble()).withAlpha(30), borderRadius: BorderRadius.circular(8), border: Border.all(color: _pill(odds.toDouble()).withAlpha(120))),
                   child: Text('${est ? '≈ ' : 'Gny '}${odds.toStringAsFixed(2).replaceAll('.', ',')}', style: jakarta(10.5, FontWeight.w800, _pill(odds.toDouble()))),
                 ),
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: on ? c.ac : Colors.transparent, border: Border.all(color: on ? c.ac : c.ln, width: 1.5)),
-                child: on ? (order > 0 ? Text('$order', style: jakarta(12, FontWeight.w800, c.on)) : Icon(Icons.check, color: c.on, size: 16)) : Icon(Icons.add, color: c.ac, size: 18),
+              // Kupona ekleme/çıkarma sadece yuvarlak işarete dokununca olur
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _tap(h),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: on ? c.ac : Colors.transparent, border: Border.all(color: on ? c.ac : c.ln, width: 1.5)),
+                    child: on ? (order > 0 ? Text('$order', style: jakarta(12, FontWeight.w800, c.on)) : Icon(Icons.check, color: c.on, size: 17)) : Icon(Icons.add, color: c.ac, size: 20),
+                  ),
+                ),
               ),
             ]),
             if (h.son6.isNotEmpty || h.taki.isNotEmpty) ...[
@@ -1393,7 +1503,6 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
               ]);
             }),
           ]),
-        ),
       ),
     );
   }

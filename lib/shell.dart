@@ -152,19 +152,19 @@ class _ShellState extends State<Shell> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: bottom + 14,
+            bottom: bottom + 18,
             child: Center(
               child: GestureDetector(
                 onTap: () => openChat(context),
                 child: Container(
-                  width: 54,
-                  height: 54,
-                  padding: const EdgeInsets.all(4),
+                  width: 46,
+                  height: 46,
+                  padding: const EdgeInsets.all(3.5),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: c.sf,
                     boxShadow: const [
-                      BoxShadow(color: Color(0x26000000), blurRadius: 16, offset: Offset(0, 4)),
+                      BoxShadow(color: Color(0x26000000), blurRadius: 14, offset: Offset(0, 4)),
                     ],
                   ),
                   child: Container(
@@ -176,7 +176,7 @@ class _ShellState extends State<Shell> {
                         colors: [Color(0xFF34D399), Color(0xFF0E9F73)],
                       ),
                     ),
-                    child: const Icon(Icons.forum_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.forum_rounded, color: Colors.white, size: 19),
                   ),
                 ),
               ),
