@@ -1325,6 +1325,8 @@ class _GiftDialogState extends State<_GiftDialog> {
   double? _total;
   double _manual = 0;
   bool _mod = false, _zArm = false, _busy = false;
+  bool _star = false;
+  int _every = 0; // saniye
   Set<String> _have = {};
   Timer? _zT;
 
@@ -1375,6 +1377,8 @@ class _GiftDialogState extends State<_GiftDialog> {
         _total = r.raw;
         _manual = r.manual;
         _mod = m.exists;
+        _star = us.data()?['star'] == true;
+        _every = (us.data()?['starSec'] as num?)?.toInt() ?? (((us.data()?['starEvery'] as num?)?.toInt() ?? 0) * 60);
       });
     } catch (e) {
       if (mounted) _t(_err(e));
@@ -1428,6 +1432,32 @@ class _GiftDialogState extends State<_GiftDialog> {
       _t(_err(e));
     }
     if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _setStar(int v) async {
+    try {
+      await _db.collection('users').doc(widget.uid).update(v == -1 ? {'star': false} : {'star': true, 'starSec': v, 'starEvery': FieldValue.delete()});
+      if (!mounted) return;
+      setState(() {
+        _star = v != -1;
+        if (v != -1) _every = v;
+      });
+      _t(v == -1 ? '${widget.name}: kupon şeridi kapatıldı' : '${widget.name}: kupon şeridi açıldı');
+    } catch (e) {
+      _t(_err(e));
+    }
+  }
+
+  Widget _starChip(AppColors c, String t, int v) {
+    final on = v == -1 ? !_star : (_star && _every == v);
+    return GestureDetector(
+      onTap: () => _setStar(v),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(color: on ? c.ac : c.sf2, borderRadius: BorderRadius.circular(12)),
+        child: Text(t, style: jakarta(13, FontWeight.w800, on ? c.on : c.tx)),
+      ),
+    );
   }
 
   Future<void> _toggleMod() async {
@@ -1658,6 +1688,20 @@ class _GiftDialogState extends State<_GiftDialog> {
                 const SizedBox(height: 6),
                 Text('Moderatör sadece kullanıcıları yasaklayabilir ve yasağı kaldırabilir. Başka yetkisi olmaz.', style: jakarta(12, FontWeight.w500, c.mu)),
               ]),
+            _sec(c, 'Kupon şeridi', [
+              Text('Bu kişi kupon paylaşınca herkesin üstünden şerit kayar (ilk koşu saatine kadar). Ne sıklıkla tekrar etsin?', style: jakarta(12, FontWeight.w500, c.mu)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                _starChip(c, 'Kapalı', -1),
+                _starChip(c, 'Bir kez', 0),
+                _starChip(c, '10 sn', 10),
+                _starChip(c, '20 sn', 20),
+                _starChip(c, '2 dk', 120),
+                _starChip(c, '5 dk', 300),
+                _starChip(c, '10 dk', 600),
+                _starChip(c, '15 dk', 900),
+              ]),
+            ]),
             _sec(c, 'Hediye çerçeve', [_frameGrid(c)]),
             Row(children: [_b(c, 'Kapat', () => Navigator.pop(context), bg: c.sf2, fg: c.tx)]),
           ]),
@@ -1809,7 +1853,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
   Map<String, dynamic>? b;
   Profile? pr;
   bool star = false;
-  int starEvery = 0;
+  int starEvery = 0; // saniye
   try {
     final r = await Future.wait([
       FirebaseFirestore.instance.collection('bans').doc(uid).get(),
@@ -1820,7 +1864,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
     pr = r[1] as Profile?;
     final ud = (r[2] as DocumentSnapshot<Map<String, dynamic>>).data();
     star = ud?['star'] == true;
-    starEvery = (ud?['starEvery'] as num?)?.toInt() ?? 0;
+    starEvery = (ud?['starSec'] as num?)?.toInt() ?? (((ud?['starEvery'] as num?)?.toInt() ?? 0) * 60);
   } catch (_) {}
   if (!context.mounted) return;
   final banned = banActive(b);
@@ -1912,7 +1956,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
             onProfile();
           }),
         if (isAdminNotifier.value)
-          tile(Icons.diamond_rounded, 'Puan / Hediye çerçeve', 'Puan ver, çerçeve hediye et, moderatör yap', [const Color(0xFFA855F7), const Color(0xFFDB2777)], () {
+          tile(Icons.diamond_rounded, 'Puan / Hediye çerçeve', 'Puan ver, çerçeve hediye et, moderatör yap, kupon şeridi', [const Color(0xFFA855F7), const Color(0xFFDB2777)], () {
             Navigator.pop(ctx);
             showDialog(context: context, builder: (_) => _GiftDialog(uid: uid, name: name, targetAdmin: targetAdmin, parent: context));
           }),
@@ -1920,7 +1964,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
           tile(
             star ? Icons.star_rounded : Icons.star_border_rounded,
             'Kupon şeridi',
-            star ? (starEvery > 0 ? 'Açık · her $starEvery dk bir gösterilir' : 'Açık · bir kez gösterilir') : 'Kapalı · kupon paylaşınca şerit çıkmaz',
+            star ? (starEvery > 0 ? 'Açık · her ${starEvery >= 60 ? '${starEvery ~/ 60} dk' : '$starEvery sn'} bir gösterilir' : 'Açık · bir kez gösterilir') : 'Kapalı · kupon paylaşınca şerit çıkmaz',
             [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
             () async {
               Navigator.pop(ctx);
@@ -1945,10 +1989,12 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
                         const SizedBox(height: 6),
                         opt('Kapalı', -1),
                         opt('Bir kez', 0),
-                        opt('Her 2 dakikada bir', 2),
-                        opt('Her 5 dakikada bir', 5),
-                        opt('Her 10 dakikada bir', 10),
-                        opt('Her 15 dakikada bir', 15),
+                        opt('Her 10 saniyede bir', 10),
+                        opt('Her 20 saniyede bir', 20),
+                        opt('Her 2 dakikada bir', 120),
+                        opt('Her 5 dakikada bir', 300),
+                        opt('Her 10 dakikada bir', 600),
+                        opt('Her 15 dakikada bir', 900),
                       ]),
                     ),
                   );
@@ -1956,7 +2002,7 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
               );
               if (v == null) return;
               try {
-                await FirebaseFirestore.instance.collection('users').doc(uid).update(v == -1 ? {'star': false} : {'star': true, 'starEvery': v});
+                await FirebaseFirestore.instance.collection('users').doc(uid).update(v == -1 ? {'star': false} : {'star': true, 'starSec': v, 'starEvery': FieldValue.delete()});
                 if (context.mounted) {
                   ScaffoldMessenger.of(context)
                     ..hideCurrentSnackBar()

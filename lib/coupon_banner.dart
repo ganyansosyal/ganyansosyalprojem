@@ -76,7 +76,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       _gotPosts = true;
       _scan();
     }, onError: (_) {});
-    _poll = Timer.periodic(const Duration(seconds: 20), (_) => _scan());
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _scan());
   }
 
   @override
@@ -102,10 +102,11 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       final start = _raceStart(cp, ts);
       final live = start != null ? now < start : now - ts <= _freshMs;
       if (!live) continue;
-      // Admin aralığı (dk): 0 = bir kez, N = her N dakikada bir tekrar
-      final every = (_stars[uid]?['starEvery'] as num?)?.toInt() ?? 0;
+      // Admin aralığı (sn): 0 = bir kez, N = her N dakikada bir tekrar
+      final sd = _stars[uid];
+      final every = (sd?['starSec'] as num?)?.toInt() ?? (((sd?['starEvery'] as num?)?.toInt() ?? 0) * 60);
       final last = _shown[d.id];
-      if (last != null && (every <= 0 || now - last < every * 60000)) continue;
+      if (last != null && (every <= 0 || now - last < every * 1000)) continue;
       if (_queue.any((q) => q.postId == d.id) || _cur?.postId == d.id) continue;
       _shown[d.id] = now;
       final city = (cp['city'] ?? '').toString();
@@ -230,13 +231,19 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
             const SizedBox(width: 12),
             Expanded(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(it.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(17, FontWeight.w800, Colors.white)),
-                const SizedBox(height: 0),
-                Text(
-                  it.label.isEmpty ? 'yeni kupon paylaştı' : 'yeni kupon paylaştı · ${it.label}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: jakarta(13, FontWeight.w600, const Color(0xFFB9C3E3)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(it.name, maxLines: 1, style: jakarta(17, FontWeight.w800, Colors.white)),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    it.label.isEmpty ? 'yeni kupon paylaştı' : 'yeni kupon paylaştı · ${it.label}',
+                    maxLines: 1,
+                    style: jakarta(13, FontWeight.w600, const Color(0xFFB9C3E3)),
+                  ),
                 ),
               ]),
             ),
