@@ -884,30 +884,46 @@ class PostCard extends StatelessWidget {
               _act(c, liked ? Icons.favorite : Icons.favorite_border, '${p.likes}', liked ? c.red : c.mu, () { _toggleLike(p).catchError((e) { if (context.mounted) _toast(context, AuthService.errorText(e)); }); }),
               const SizedBox(width: 16),
               _act(c, Icons.chat_bubble_outline, '${p.comments.length}', c.mu, () => openComments(context, p.id, p.uid)),
-              if (cp != null) ...[
-                const SizedBox(width: 16),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _shareImg(context),
-                  child: Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: Icon(Icons.share_outlined, size: 19, color: c.mu)),
-                ),
-              ],
+              if (cp != null) const Spacer(),
               if (cp != null && !mine) ...[
-                const Spacer(),
-                GestureDetector(
+                Flexible(
+                  child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => _toggleTrack(p.id, !tracked).catchError((e) { if (context.mounted) _toast(context, AuthService.errorText(e)); }),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(color: tracked ? const Color(0xFF0EA5E9).withAlpha(30) : c.sf2, borderRadius: BorderRadius.circular(10), border: Border.all(color: tracked ? const Color(0xFF0EA5E9) : c.ln)),
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(color: tracked ? const Color(0xFF0EA5E9).withAlpha(30) : c.sf2, borderRadius: BorderRadius.circular(12), border: Border.all(color: tracked ? const Color(0xFF0EA5E9) : c.ln)),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(tracked ? Icons.bookmark : Icons.bookmark_border, size: 15, color: const Color(0xFF0EA5E9)),
-                      const SizedBox(width: 4),
-                      Text(tracked ? 'Takip ediliyor' : 'Kuponu takip et', style: jakarta(11, FontWeight.w800, tracked ? const Color(0xFF0EA5E9) : c.mu)),
+                      Icon(tracked ? Icons.bookmark : Icons.bookmark_border, size: 16, color: const Color(0xFF0EA5E9)),
+                      const SizedBox(width: 6),
+                      Flexible(child: Text(tracked ? 'Takip ediliyor' : 'Kuponu takip et', maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(12, FontWeight.w800, tracked ? const Color(0xFF0EA5E9) : c.mu))),
+                    ]),
+                  ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // Paylaş: satırın sağ ucunda, kupon kutusunun sağ kenarıyla hizalı
+              if (cp != null)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _shareImg(context),
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF14B27D), Color(0xFF0E9F73)]),
+                      boxShadow: const [BoxShadow(color: Color(0x4D0E9F73), blurRadius: 8, offset: Offset(0, 3))],
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.ios_share_rounded, size: 16, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text('Paylaş', style: jakarta(12, FontWeight.w800, Colors.white)),
                     ]),
                   ),
                 ),
-              ],
             ]),
           ]),
         ),
