@@ -131,7 +131,6 @@ class _ShopPageState extends State<ShopPage> {
     _syncing = true;
     try {
       await _save([...have, ...gifted], gifted.last, _spent);
-      _snack('🎁 Yönetici sana hediye çerçeve verdi: ${gifted.map((i) => frameById(i)!.name).join(', ')}');
     } catch (_) {} finally {
       _syncing = false;
     }

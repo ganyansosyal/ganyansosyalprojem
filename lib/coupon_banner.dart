@@ -26,6 +26,10 @@ class _Item {
 // Aynı kupon aynı oturumda ikinci kez çıkmasın
 final Map<String, int> _shown = {};
 
+// İki şerit arasında en az bu kadar süre geçmeli (arka arkaya çıkmasın)
+const _minGapMs = 60 * 1000;
+int _lastEndMs = 0;
+
 // Uygulamaya sonradan girenler: son 10 dakikadaki kuponu da görür
 const _freshMs = 10 * 60 * 1000;
 
@@ -60,7 +64,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
   Profile? _curProfile;
   bool _busy = false;
   late final AnimationController _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 6000));
-  Timer? _poll;
+  Timer? _poll, _gap;
 
 
   @override
@@ -82,6 +86,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
   @override
   void dispose() {
     _poll?.cancel();
+    _gap?.cancel();
     _sp?.cancel();
     _ss?.cancel();
     _ac.dispose();
@@ -123,6 +128,12 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
 
   Future<void> _next() async {
     if (_busy || _queue.isEmpty || !mounted) return;
+    final wait = _lastEndMs + _minGapMs - DateTime.now().millisecondsSinceEpoch;
+    if (wait > 0) {
+      _gap?.cancel();
+      _gap = Timer(Duration(milliseconds: wait + 50), _next);
+      return;
+    }
     _busy = true;
     final it = _queue.removeAt(0);
     Profile? pr;
@@ -138,6 +149,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
     await _ac.forward().orCancel.catchError((_) {});
     if (!mounted) return;
     setState(() => _cur = null);
+    _lastEndMs = DateTime.now().millisecondsSinceEpoch;
     _busy = false;
     _next();
   }
@@ -148,6 +160,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
     feedTarget.value = FeedTarget(it.postId, 'coupon');
     _ac.stop();
     setState(() => _cur = null);
+    _lastEndMs = DateTime.now().millisecondsSinceEpoch;
     _busy = false;
     _next();
   }
@@ -186,6 +199,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
   void _tap2() {
     _ac.stop();
     setState(() => _cur = null);
+    _lastEndMs = DateTime.now().millisecondsSinceEpoch;
     _busy = false;
     _next();
   }

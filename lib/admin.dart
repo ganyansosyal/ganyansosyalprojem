@@ -1480,8 +1480,6 @@ class _GiftDialogState extends State<_GiftDialog> {
     try {
       await _db.collection('grants').doc(widget.uid).set({
         'frames': FieldValue.arrayUnion([f.id]),
-        'at': _now(),
-        'note': 'Yönetici sana ${f.name} çerçevesini hediye etti',
       }, SetOptions(merge: true));
       // Mağaza kullanıcıya kapalı olduğu için çerçeveyi doğrudan hesabına işle ve tak
       await _db.collection('users').doc(widget.uid).update({
@@ -1573,7 +1571,7 @@ class _GiftDialogState extends State<_GiftDialog> {
                 padding: const EdgeInsets.fromLTRB(6, 22, 6, 8),
                 decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(14), border: Border.all(color: _have.contains(f.id) ? c.ac : c.ln, width: 1.5)),
                 child: Column(children: [
-                  Avatar(profile: Profile(uid: widget.uid, name: widget.name, handle: '', frame: f.id), size: 46),
+                  Avatar(profile: Profile(uid: widget.uid, name: widget.name, handle: '', frame: f.id), size: 46, forceFrame: f.id),
                   const SizedBox(height: 6),
                   Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(11.5, FontWeight.w800, c.tx)),
                   Text(_have.contains(f.id) ? 'Geri al' : 'Gönder', style: jakarta(11, FontWeight.w800, _have.contains(f.id) ? c.red : c.mu)),

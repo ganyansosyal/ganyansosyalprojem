@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'bets.dart' show kolon, birimFiyat, money;
+import 'film.dart';
 import 'ikramiye.dart';
 import 'scoring.dart';
 import 'theme.dart';
-import 'tjk.dart' show TjkStore;
+import 'tjk.dart' show TjkStore, getVideoMp4;
 
 const _ay = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
@@ -13,6 +15,44 @@ String _stamp(int ts) {
   final d = DateTime.fromMillisecondsSinceEpoch(ts);
   String two(int n) => n.toString().padLeft(2, '0');
   return '${d.day} ${_ay[d.month - 1]} · ${two(d.hour)}:${two(d.minute)}';
+}
+
+bool _filmBusy = false;
+
+Future<void> _openFilm(BuildContext context, String city, int r) async {
+  if (_filmBusy) return;
+  final s = TjkStore.i;
+  final rr = s.results[city]?[r];
+  if (rr == null || rr.video.isEmpty) return;
+  _filmBusy = true;
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(const SnackBar(content: Text('Video yükleniyor…'), duration: Duration(seconds: 8)));
+  try {
+    final mp4 = await getVideoMp4(rr.video, s.iso);
+    messenger.hideCurrentSnackBar();
+    if (!context.mounted) return;
+    if (mp4 == null) {
+      await launchUrl(Uri.parse(rr.video), mode: LaunchMode.externalApplication);
+      return;
+    }
+    final race = s.race(city, r);
+    final rows = <FilmRow>[];
+    for (final no in rr.sira.take(4)) {
+      String nm = '';
+      if (race != null) {
+        for (final x in race.atlar) {
+          if (x.no == no) nm = x.name;
+        }
+      }
+      rows.add(FilmRow(no, nm, rr.gny[no]));
+    }
+    final p = s.iso.split('-');
+    await showRaceFilm(context, url: mp4, race: r, city: city, dateLabel: '${p[2]}.${p[1]}.${p[0]}', rows: rows);
+  } catch (_) {
+    messenger.hideCurrentSnackBar();
+  } finally {
+    _filmBusy = false;
+  }
 }
 
 List<Map> _maps(dynamic v) => ((v as List?) ?? const []).whereType<Map>().toList();
@@ -24,6 +64,31 @@ class CouponView extends StatelessWidget {
   final int ts;
   final AppColors? colors;
   const CouponView(this.cp, {super.key, this.ts = 0, this.colors});
+
+  // Bu koşunun videosu varsa koşu numarasını döndürür (yoksa null)
+  int? _film(dynamic r) {
+    final n = (r as num?)?.toInt() ?? 0;
+    final city = (cp['city'] ?? '').toString();
+    if (n <= 0 || (cp['iso'] ?? '').toString() != TjkStore.i.iso) return null;
+    final v = TjkStore.i.results[city]?[n]?.video ?? '';
+    return v.isEmpty ? null : n;
+  }
+
+  Widget _playBtn(AppColors c, int r) => Builder(
+        builder: (ctx) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _openFilm(ctx, (cp['city'] ?? '').toString(), r),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 5),
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(color: c.red, shape: BoxShape.circle),
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 14),
+            ),
+          ),
+        ),
+      );
 
   Widget _chip(AppColors c, int n, String st, double s) {
     Color bg, fg, bd;
@@ -97,7 +162,7 @@ class CouponView extends StatelessWidget {
   }
 
   /// Yatay satır: solda koşu/at etiketi, yanında numaralar yan yana (sığmazsa alta kıvrılır), sağda tuttu/yattı işareti.
-  Widget _row(AppColors c, String top, String sub, String st, List<int> picks, String Function(int) chipSt, double chipS, {String? side, bool showMark = false}) {
+  Widget _row(AppColors c, String top, String sub, String st, List<int> picks, String Function(int) chipSt, double chipS, {String? side, bool showMark = false, int? film}) {
     return Container(
       decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))),
       child: IntrinsicHeight(
@@ -113,6 +178,7 @@ class CouponView extends StatelessWidget {
               ]),
             ),
           ),
+          if (film != null) Center(child: _playBtn(c, film)),
           if (showMark)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -182,7 +248,7 @@ class CouponView extends StatelessWidget {
 
       body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         for (var i = 0; i < lists.length; i++)
-          _row(c, '${i + 1}. AT', i == 0 ? '${l['r'] ?? ''}. Koşu' : '', sts[0], lists[i], chipSt, 28, showMark: !pend && i == 0),
+          _row(c, '${i + 1}. AT', i == 0 ? '${l['r'] ?? ''}. Koşu' : '', sts[0], lists[i], chipSt, 28, showMark: !pend && i == 0, film: i == 0 ? _film(l['r']) : null),
       ]);
     } else if (cols > 0) {
       // Her koşu bir satır: "2. Koşu  [1] [3] [4] ..." — çok at olsa da kart uzamaz
@@ -217,7 +283,7 @@ class CouponView extends StatelessWidget {
             }
             final top1 = slotted ? '${((l['slot'] as num?) ?? 0).toInt() + 1}. At' : '${l['r'] ?? ''}. Koşu';
             final sub1 = slotted ? '${l['r'] ?? ''}. Koşu' : '${l['t'] ?? ''}';
-            return _row(c, top1, sub1, sts[i], picks, chipSt, chipS, side: side, showMark: settled);
+            return _row(c, top1, sub1, sts[i], picks, chipSt, chipS, side: side, showMark: settled, film: _film(l['r']));
           }),
       ]);
     }

@@ -178,7 +178,9 @@ class _LiveUsers {
 class Avatar extends StatefulWidget {
   final Profile? profile;
   final double size;
-  const Avatar({super.key, required this.profile, this.size = 40});
+  /// Verilirse canlı/profil çerçevesi yerine bu çerçeve çizilir (önizleme için).
+  final String? forceFrame;
+  const Avatar({super.key, required this.profile, this.size = 40, this.forceFrame});
 
   @override
   State<Avatar> createState() => _AvatarState();
@@ -199,6 +201,7 @@ class _AvatarState extends State<Avatar> {
   String _liveFrame = '';
 
   String _effFrame() {
+    if (widget.forceFrame != null) return widget.forceFrame!;
     final uid = widget.profile?.uid ?? '';
     final live = uid.isEmpty ? null : _LiveUsers.frame[uid];
     return live ?? (widget.profile?.frame ?? '');
