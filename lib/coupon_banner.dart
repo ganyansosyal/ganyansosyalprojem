@@ -59,10 +59,9 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
   _Item? _cur;
   Profile? _curProfile;
   bool _busy = false;
-  late final AnimationController _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 4600));
+  late final AnimationController _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 6000));
   Timer? _poll;
 
-  String get _me => profileNotifier.value?.uid ?? '';
 
   @override
   void initState() {
@@ -96,7 +95,7 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       final m = d.data();
       final uid = (m['uid'] ?? '').toString();
       final ts = (m['ts'] as num?)?.toInt() ?? 0;
-      if (!_stars.containsKey(uid) || uid == _me) continue;
+      if (!_stars.containsKey(uid)) continue;
       if (m['coupon'] is! Map || m['adminHidden'] == true) continue;
       final cp = Map<String, dynamic>.from(m['coupon'] as Map);
       // İlk koşunun saatine kadar göster; saat yoksa 10 dk
@@ -160,9 +159,9 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
       animation: _ac,
       builder: (_, __) {
         final t = _ac.value;
-        // 0-0.1 iner, 0.1-0.9 durur, 0.9-1 çıkar
-        final inT = Curves.easeOutBack.transform((t / 0.1).clamp(0.0, 1.0));
-        final outT = Curves.easeInCubic.transform(((t - 0.9) / 0.1).clamp(0.0, 1.0));
+        // toplam 6 sn: ilk %8 iner, son %8 çıkar
+        final inT = Curves.easeOutBack.transform((t / 0.08).clamp(0.0, 1.0));
+        final outT = Curves.easeInCubic.transform(((t - 0.92) / 0.08).clamp(0.0, 1.0));
         final slide = (1 - inT) * -70 + outT * -70;
         final shine = ((t - 0.2) / 0.5).clamp(0.0, 1.0);
         return Transform.translate(
@@ -193,8 +192,8 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
   Widget _capsule(_Item it, double shine) {
     const gold = Color(0xFFFFC93C);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 36),
-      height: 44,
+      margin: const EdgeInsets.symmetric(horizontal: 14),
+      height: 66,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(40),
         gradient: const LinearGradient(colors: [Color(0xFF0B1330), Color(0xFF16224A)]),
@@ -221,35 +220,35 @@ class _CouponBannerState extends State<CouponBanner> with SingleTickerProviderSt
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(5, 4, 7, 4),
+          padding: const EdgeInsets.fromLTRB(7, 6, 10, 6),
           child: Row(children: [
             Container(
-              padding: const EdgeInsets.all(1.5),
+              padding: const EdgeInsets.all(2),
               decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [gold, Color(0xFFFF9F1C)])),
-              child: Avatar(profile: _curProfile, size: 32),
+              child: Avatar(profile: _curProfile, size: 50),
             ),
-            const SizedBox(width: 7),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(it.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(11.5, FontWeight.w800, Colors.white)),
+                Text(it.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(17, FontWeight.w800, Colors.white)),
                 const SizedBox(height: 0),
                 Text(
                   it.label.isEmpty ? 'yeni kupon paylaştı' : 'yeni kupon paylaştı · ${it.label}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: jakarta(9, FontWeight.w600, const Color(0xFFB9C3E3)),
+                  style: jakarta(13, FontWeight.w600, const Color(0xFFB9C3E3)),
                 ),
               ]),
             ),
             if (it.amount > 0) ...[
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   gradient: const LinearGradient(colors: [Color(0xFFFFD84D), Color(0xFFFFA928)]),
                 ),
-                child: Text(money(it.amount), style: jakarta(10.5, FontWeight.w800, const Color(0xFF3A2600))),
+                child: Text(money(it.amount), style: jakarta(15.5, FontWeight.w800, const Color(0xFF3A2600))),
               ),
             ],
           ]),
