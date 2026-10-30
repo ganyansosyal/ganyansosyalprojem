@@ -161,14 +161,55 @@ class _ChatSheetState extends State<_ChatSheet> {
   Future<void> _clearAll() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sohbeti temizle'),
-        content: const Text('Tüm mesajlar herkes için silinecek. Bu geri alınamaz.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Temizle', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+      builder: (ctx) {
+        final c = AppColors.of(ctx);
+        return Dialog(
+          backgroundColor: c.sf,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(color: c.red.withAlpha(30), shape: BoxShape.circle),
+                child: Icon(Icons.delete_sweep_rounded, size: 30, color: c.red),
+              ),
+              const SizedBox(height: 16),
+              Text('Sohbet temizlensin mi?', textAlign: TextAlign.center, style: jakarta(19, FontWeight.w800, c.tx)),
+              const SizedBox(height: 8),
+              Text('Tüm mesajlar herkes için silinecek. Bu işlem geri alınamaz.', textAlign: TextAlign.center, style: jakarta(14, FontWeight.w500, c.mu).copyWith(height: 1.4)),
+              const SizedBox(height: 22),
+              Row(children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, false),
+                    child: Container(
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(16)),
+                      child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, true),
+                    child: Container(
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(16)),
+                      child: Text('Temizle', style: jakarta(15, FontWeight.w800, Colors.white)),
+                    ),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        );
+      },
     );
     if (ok != true) return;
     try {
