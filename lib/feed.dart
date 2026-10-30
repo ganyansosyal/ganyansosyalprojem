@@ -884,10 +884,16 @@ class PostCard extends StatelessWidget {
               _act(c, liked ? Icons.favorite : Icons.favorite_border, '${p.likes}', liked ? c.red : c.mu, () { _toggleLike(p).catchError((e) { if (context.mounted) _toast(context, AuthService.errorText(e)); }); }),
               const SizedBox(width: 16),
               _act(c, Icons.chat_bubble_outline, '${p.comments.length}', c.mu, () => openComments(context, p.id, p.uid)),
-              if (cp != null) const Spacer(),
-              if (cp != null && !mine) ...[
-                Flexible(
-                  child: GestureDetector(
+              // Boş alanın tamamı takip butonuna ayrılır (yazı kesilmesin); buton sağa yaslı, Paylaş'a bitişik
+              if (cp != null)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: mine
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(left: 8, right: 8),
+                            child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => _toggleTrack(p.id, !tracked).catchError((e) { if (context.mounted) _toast(context, AuthService.errorText(e)); }),
                   child: Container(
@@ -902,8 +908,8 @@ class PostCard extends StatelessWidget {
                   ),
                   ),
                 ),
-                const SizedBox(width: 8),
-              ],
+                  ),
+                ),
               // Paylaş: satırın sağ ucunda, kupon kutusunun sağ kenarıyla hizalı
               if (cp != null)
                 GestureDetector(
