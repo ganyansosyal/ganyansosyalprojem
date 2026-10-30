@@ -130,7 +130,11 @@ class _ResultsPageState extends State<ResultsPage> {
     
     return RefreshIndicator(
       onRefresh: () => s.refreshResults(force: true),
-      child: ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 20), children: [
+      child: ListView(
+        // Ekranın dışındaki kutuları önceden hazırla: kaydırırken yeni kutu girince takılma olmasın
+        cacheExtent: 3000,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+        children: [
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
