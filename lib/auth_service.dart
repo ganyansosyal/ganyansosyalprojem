@@ -143,6 +143,7 @@ class _Bus extends ChangeNotifier {
 /// Firestore tek dinleme olarak paylaşır). Biri fotoğrafını değiştirince her yerdeki avatar anında güncellenir.
 class _LiveUsers {
   static final Map<String, String> photo = {};
+  static final Map<String, String> frame = {}; // canlı çerçeve: hediye/mağaza değişince anında yansır
   static final _Bus bus = _Bus();
   static StreamSubscription? _sub;
 
@@ -155,6 +156,11 @@ class _LiveUsers {
           final ph = (d.data()['photo'] ?? '').toString();
           if (photo[d.id] != ph) {
             photo[d.id] = ph;
+            changed = true;
+          }
+          final fr = (d.data()['frame'] ?? '').toString();
+          if (frame[d.id] != fr) {
+            frame[d.id] = fr;
             changed = true;
           }
         }
@@ -190,8 +196,19 @@ class _AvatarState extends State<Avatar> {
     return live ?? (widget.profile?.photo ?? '');
   }
 
+  String _liveFrame = '';
+
+  String _effFrame() {
+    final uid = widget.profile?.uid ?? '';
+    final live = uid.isEmpty ? null : _LiveUsers.frame[uid];
+    return live ?? (widget.profile?.frame ?? '');
+  }
+
   void _onLive() {
-    if (!mounted || _eff() == _photo) return;
+    if (!mounted) return;
+    final f = _effFrame();
+    if (_eff() == _photo && f == _liveFrame) return;
+    _liveFrame = f;
     _sync();
     setState(() {});
   }
@@ -261,7 +278,8 @@ class _AvatarState extends State<Avatar> {
     final name = (widget.profile?.name ?? '').trim();
     final letter = name.isEmpty ? '?' : name.substring(0, 1).toUpperCase();
     final img = _img;
-    final fr = frameById(widget.profile?.frame);
+    final fr = frameById(_effFrame());
+    _liveFrame = _effFrame();
     final core = Container(
       width: size,
       height: size,
