@@ -8,6 +8,7 @@ import 'profile.dart';
 import 'chat.dart';
 import 'coupon_banner.dart';
 import 'extras.dart';
+import 'horse_watch.dart';
 import 'predict.dart';
 import 'preload.dart';
 import 'results.dart';
@@ -32,7 +33,7 @@ class _ShellState extends State<Shell> {
       case 0:
         return FeedPage(
           onOpenRace: (city, race) {
-            predictJump.value = (city: city, race: race);
+            predictJump.value = (city: city, race: race, iso: null);
             setState(() => _tab = 2);
           },
           onOpenLeaders: () => setState(() => _tab = 1),
@@ -54,8 +55,12 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     final u = profileNotifier.value?.uid ?? '';
-    if (u.isNotEmpty) Settler.start(u);
+    if (u.isNotEmpty) {
+      Settler.start(u);
+      HorseWatch.i.start(u);
+    }
     feedTarget.addListener(_toFeed);
+    predictJump.addListener(_toPredict);
   }
 
   // Bildirimden bir kupona gidilirken akış sekmesine geç
@@ -63,9 +68,16 @@ class _ShellState extends State<Shell> {
     if (feedTarget.value != null && mounted && _tab != 0) setState(() => _tab = 0);
   }
 
+  // Takip atı bildiriminden koşuya gidilirken Tahmin Yap sekmesine geç
+  void _toPredict() {
+    if (predictJump.value != null && mounted && _tab != 2) setState(() => _tab = 2);
+  }
+
   @override
   void dispose() {
     feedTarget.removeListener(_toFeed);
+    predictJump.removeListener(_toPredict);
+    HorseWatch.i.stop();
     Settler.stop();
     super.dispose();
   }
@@ -432,6 +444,11 @@ class AppDrawer extends StatelessWidget {
                       }),
                       Divider(height: 1, color: c.ln),
                     ],
+                    _DrawerRow(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
+                    }),
+                    Divider(height: 1, color: c.ln),
                     _DrawerRow(icon: Icons.menu_book_outlined, label: 'Kurallar', onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RulesPage()));

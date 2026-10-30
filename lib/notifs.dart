@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'auth_service.dart';
 import 'feed.dart';
+import 'predict.dart' show predictJump;
 import 'profile.dart';
 import 'shell.dart' show IconBox;
 import 'theme.dart';
@@ -160,6 +161,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return '$fn seni takip etmeye başladı';
       case 'newcoupon':
         return '$fn yeni kupon paylaştı${tx.isEmpty ? '' : ' · $tx'}';
+      case 'horse':
+        return 'Takip atın $fn ${(n['hd'] ?? 'bugün').toString()} koşacak${tx.isEmpty ? '' : ' · $tx'}';
       case 'win':
         return 'Kuponun tuttu${tx.isEmpty ? '' : ' · $tx'}';
       case 'lose':
@@ -196,6 +199,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
               return GestureDetector(
                 onTap: () {
                   final type = (n['type'] ?? '').toString();
+                  // Takip atı: koşunun bültenine (Tahmin Yap) git
+                  if (type == 'horse') {
+                    final r = (n['hr'] as num?)?.toInt() ?? 0;
+                    final city = (n['hc'] ?? '').toString();
+                    if (r > 0 && city.isNotEmpty) {
+                      predictJump.value = (city: city, race: r, iso: (n['hi'] ?? '').toString());
+                      Navigator.pop(context);
+                    }
+                    return;
+                  }
                   final f = (n['from'] ?? '').toString();
                   final pd = (n['pd'] ?? '').toString();
                   // Takip bildirimi: profile git. Diğerleri (kupon, beğeni, yorum, tuttu/tutmadı): kuponu akışta bul
@@ -211,7 +224,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
                   child: Row(children: [
-                    _NotifAvatar(uid: (n['from'] ?? '').toString(), name: (n['fn'] ?? '').toString(), type: (n['type'] ?? '').toString()),
+                    _NotifAvatar(uid: n['type'] == 'horse' ? '' : (n['from'] ?? '').toString(), name: (n['fn'] ?? '').toString(), type: (n['type'] ?? '').toString()),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -244,7 +257,9 @@ class _NotifAvatar extends StatelessWidget {
       return CircleAvatar(
         radius: 22,
         backgroundColor: c.ac.withOpacity(0.12),
-        child: Icon(win ? Icons.emoji_events_outlined : Icons.receipt_long_outlined, color: c.ac, size: 22),
+        child: type == 'horse'
+            ? Icon(Icons.star_rounded, color: c.gold, size: 24)
+            : Icon(win ? Icons.emoji_events_outlined : Icons.receipt_long_outlined, color: c.ac, size: 22),
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(

@@ -1,0 +1,237 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+import 'auth_service.dart';
+import 'shell.dart' show IconBox;
+import 'theme.dart';
+import 'tjk.dart';
+
+String _key(String s) => s
+    .toUpperCase()
+    .replaceAll('İ', 'I')
+    .replaceAll('Ş', 'S')
+    .replaceAll('Ğ', 'G')
+    .replaceAll('Ü', 'U')
+    .replaceAll('Ö', 'O')
+    .replaceAll('Ç', 'C')
+    .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+class _Resume with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) HorseWatch.i.check();
+  }
+}
+
+/// Takip edilen atlar: at bültende (bugün/yarın) görününce zile bildirim yazar.
+/// Aynı at için bildirim koşu saatine kadar saatte bir yenilenir; koşu saati geçince kaybolur.
+class HorseWatch extends ChangeNotifier {
+  HorseWatch._();
+  static final HorseWatch i = HorseWatch._();
+
+  static const _hour = 3600 * 1000;
+  final _resume = _Resume();
+  List<({String n, String id})> follows = [];
+  String _uid = '';
+  Timer? _t;
+  bool _busy = false;
+
+  DocumentReference<Map<String, dynamic>> get _me => FirebaseFirestore.instance.collection('users').doc(_uid);
+
+  Future<void> start(String uid) async {
+    if (uid.isEmpty) return;
+    _uid = uid;
+    WidgetsBinding.instance.addObserver(_resume);
+    await _load();
+    _t?.cancel();
+    _t = Timer.periodic(const Duration(minutes: 15), (_) => check());
+    check();
+  }
+
+  void stop() {
+    _t?.cancel();
+    WidgetsBinding.instance.removeObserver(_resume);
+    _uid = '';
+    follows = [];
+  }
+
+  Future<void> _load() async {
+    try {
+      final d = await _me.get();
+      final l = (d.data()?['fhorses'] as List?) ?? const [];
+      follows = [
+        for (final x in l.whereType<Map>())
+          if ((x['n'] ?? '').toString().isNotEmpty) (n: x['n'].toString(), id: (x['id'] ?? '').toString())
+      ];
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  bool isFollowing(String name) => follows.any((f) => _key(f.n) == _key(name));
+
+  Future<void> _save() async {
+    try {
+      await _me.set({
+        'fhorses': [for (final f in follows) {'n': f.n, 'id': f.id}]
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// true = takibe alındı, false = takipten çıkarıldı
+  Future<bool> toggle(String name, String atId) async {
+    final k = _key(name);
+    final on = follows.any((f) => _key(f.n) == k);
+    if (on) {
+      follows = follows.where((f) => _key(f.n) != k).toList();
+    } else {
+      follows = [...follows, (n: name, id: atId)];
+    }
+    notifyListeners();
+    await _save();
+    if (!on) check();
+    return !on;
+  }
+
+  DateTime? _start(String iso, String saat) {
+    final m = RegExp(r'^(\d{1,2})[:.](\d{2})$').firstMatch(saat.trim());
+    if (m == null) return null;
+    final p = iso.split('-').map(int.parse).toList();
+    return DateTime(p[0], p[1], p[2], int.parse(m.group(1)!), int.parse(m.group(2)!));
+  }
+
+  /// Bugün ve yarının bültenini tarar; takip edilen at varsa bildirimi (saatte bir) yazar/yeniler.
+  Future<void> check() async {
+    if (_busy || _uid.isEmpty || follows.isEmpty) return;
+    _busy = true;
+    try {
+      final col = FirebaseFirestore.instance.collection('notifs');
+      // Zilin kullandığı sorgu: son bildirim zamanlarını buradan okuruz
+      final last = <String, int>{};
+      try {
+        final q = await col.where('to', isEqualTo: _uid).limit(100).get();
+        for (final d in q.docs) {
+          last[d.id] = ((d.data()['ts'] as num?) ?? 0).toInt();
+        }
+      } catch (_) {}
+      final keys = {for (final f in follows) _key(f.n): f.n};
+      final ids = {for (final f in follows) if (f.id.isNotEmpty) f.id: f.n};
+      final today = isoToday();
+      for (final iso in [today, isoAdd(today, 1)]) {
+        List<City> cities;
+        try {
+          cities = await getCities(iso);
+        } catch (_) {
+          continue;
+        }
+        for (final c in cities) {
+          List<Race> races;
+          try {
+            races = await getProgram(c, iso);
+          } catch (_) {
+            continue;
+          }
+          for (final r in races) {
+            final st = _start(iso, r.saat);
+            final now = DateTime.now();
+            if (st == null || !st.isAfter(now)) continue;
+            for (final h in r.atlar) {
+              if (h.kosmaz) continue;
+              final hit = keys[_key(h.name)] ?? (h.atId.isNotEmpty ? ids[h.atId] : null);
+              if (hit == null) continue;
+              final id = 'fh_${_uid}_${iso}_${_key(c.name)}_${r.no}_${_key(h.name)}';
+              final ms = now.millisecondsSinceEpoch;
+              if (ms - (last[id] ?? 0) < _hour) continue;
+              try {
+                await col.doc(id).set({
+                  'to': _uid,
+                  'from': _uid,
+                  'type': 'horse',
+                  'fn': h.name,
+                  'tx': '${c.name} · ${r.no}. koşu · ${r.saat}',
+                  'hd': iso == today ? 'bugün' : 'yarın',
+                  'hc': c.name,
+                  'hr': r.no,
+                  'hi': iso,
+                  'ts': ms,
+                  'exp': Timestamp.fromDate(st),
+                });
+                last[id] = ms;
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } finally {
+      _busy = false;
+    }
+  }
+}
+
+/* ---------------- Takip atları sayfası ---------------- */
+
+class FollowedHorsesPage extends StatelessWidget {
+  const FollowedHorsesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Scaffold(
+      backgroundColor: c.bg,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: Row(children: [
+              IconBox(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
+              const SizedBox(width: 12),
+              Text('Takip atları', style: jakarta(20, FontWeight.w800, c.tx)),
+            ]),
+          ),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: HorseWatch.i,
+              builder: (_, __) {
+                final l = HorseWatch.i.follows;
+                if (l.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Henüz takip ettiğin at yok.\nTahmin Yap sayfasında atın yanındaki yıldıza dokun; at bültende koşmaya hazır olunca zile bildirim gelir.',
+                        textAlign: TextAlign.center,
+                        style: jakarta(14, FontWeight.w600, c.mu),
+                      ),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: l.length,
+                  itemBuilder: (_, i) {
+                    final f = l[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
+                      child: Row(children: [
+                        Icon(Icons.star_rounded, color: c.gold, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(f.n, style: jakarta(15, FontWeight.w800, c.tx))),
+                        TextButton(
+                          onPressed: () => HorseWatch.i.toggle(f.n, f.id),
+                          child: Text('Takibi bırak', style: jakarta(13, FontWeight.w700, c.red)),
+                        ),
+                      ]),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}

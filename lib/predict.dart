@@ -8,13 +8,14 @@ import 'bets.dart';
 import 'film.dart';
 import 'live.dart';
 import 'settle.dart';
+import 'horse_watch.dart';
 import 'theme.dart';
 import 'tjk.dart';
 
 const _gun = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 const _ay = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
-final ValueNotifier<({String city, int race})?> predictJump = ValueNotifier(null);
+final ValueNotifier<({String city, int race, String? iso})?> predictJump = ValueNotifier(null);
 
 String isoLabel(String iso) {
   final p = iso.split('-').map(int.parse).toList();
@@ -135,9 +136,23 @@ class _PredictPageState extends State<PredictPage> {
     if (mounted && predictJump.value != null) setState(_applyJump);
   }
 
+  bool _jumpLoading = false;
+
   void _applyJump() {
     final j = predictJump.value;
     if (j == null || s.cities.isEmpty) return;
+    // Koşu başka bir günün bülteninde (ör. yarın): önce o günü yükle, sonra koşuya git
+    if (j.iso != null && j.iso!.isNotEmpty && j.iso != s.iso) {
+      if (!_jumpLoading) {
+        _jumpLoading = true;
+        s.load(j.iso!).whenComplete(() {
+          _jumpLoading = false;
+          final k = predictJump.value;
+          if (mounted && k != null) predictJump.value = (city: k.city, race: k.race, iso: s.iso);
+        });
+      }
+      return;
+    }
     predictJump.value = null;
     if (!s.cities.any((c) => c.name == j.city)) return;
     _city = j.city;
@@ -1442,6 +1457,24 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
                   Text(h.name + (h.kosmaz ? ' (Koşmaz)' : ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(14, FontWeight.w800, c.tx)),
                   Text(h.jockey, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(11.5, FontWeight.w600, c.mu)),
                 ]),
+              ),
+              // Takip atı: koşmaya hazır olunca zile bildirim gelir
+              ListenableBuilder(
+                listenable: HorseWatch.i,
+                builder: (_, __) {
+                  final fw = HorseWatch.i.isFollowing(h.name);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      final nowOn = await HorseWatch.i.toggle(h.name, h.atId);
+                      _toast(nowOn ? '${h.name} takip edildi. Koşacağı zaman zile bildirim gelecek.' : '${h.name} takipten çıkarıldı.');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Icon(fw ? Icons.star_rounded : Icons.star_border_rounded, size: 22, color: fw ? c.gold : c.mu),
+                    ),
+                  );
+                },
               ),
               if (h.agf != null) Padding(padding: const EdgeInsets.only(right: 6), child: Text('%${h.agf}', style: jakarta(11.5, FontWeight.w800, const Color(0xFFD97706)))),
               if (odds != null)
