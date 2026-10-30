@@ -6,7 +6,7 @@ import 'film.dart';
 import 'ikramiye.dart';
 import 'scoring.dart';
 import 'theme.dart';
-import 'tjk.dart' show TjkStore, getVideoMp4;
+import 'tjk.dart' show TjkStore, City, Race, RaceResult, getVideoMp4, getCities, getProgram, getResults, isoToday;
 
 const _ay = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
@@ -19,23 +19,71 @@ String _stamp(int ts) {
 
 bool _filmBusy = false;
 
-Future<void> _openFilm(BuildContext context, String city, int r) async {
-  if (_filmBusy) return;
+// Başka güne ait (veya mağazada seçili olmayan) kuponlar için koşu verisi önbelleği
+class _Day {
+  final List<Race> races;
+  final Map<int, RaceResult> res;
+  final int at;
+  _Day(this.races, this.res) : at = DateTime.now().millisecondsSinceEpoch;
+}
+
+final Map<String, _Day> _days = {};
+final Map<String, Future<void>> _dayLoads = {};
+
+Future<void> _loadDay(String iso, String city) {
+  final key = '$iso|$city';
+  final old = _days[key];
+  // Geçmiş gün değişmez; bugün ise 3 dakikada bir yenilenir
+  if (old != null && (iso != isoToday() || DateTime.now().millisecondsSinceEpoch - old.at < 180000)) return Future.value();
+  return _dayLoads[key] ??= () async {
+    try {
+      final cs = await getCities(iso);
+      City? c;
+      for (final x in cs) {
+        if (x.name == city) c = x;
+      }
+      if (c == null) return;
+      final rs = await getProgram(c, iso);
+      final res = await getResults(c, iso, rs);
+      _days[key] = _Day(rs, res);
+    } catch (_) {} finally {
+      _dayLoads.remove(key);
+    }
+  }();
+}
+
+RaceResult? _resultOf(String iso, String city, int r) {
   final s = TjkStore.i;
-  final rr = s.results[city]?[r];
+  if (iso == s.iso) return s.results[city]?[r];
+  return _days['$iso|$city']?.res[r];
+}
+
+Race? _raceOf(String iso, String city, int r) {
+  final s = TjkStore.i;
+  if (iso == s.iso) return s.race(city, r);
+  final l = _days['$iso|$city']?.races ?? const <Race>[];
+  for (final x in l) {
+    if (x.no == r) return x;
+  }
+  return null;
+}
+
+Future<void> _openFilm(BuildContext context, String iso, String city, int r) async {
+  if (_filmBusy) return;
+  final rr = _resultOf(iso, city, r);
   if (rr == null || rr.video.isEmpty) return;
   _filmBusy = true;
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(const SnackBar(content: Text('Video yükleniyor…'), duration: Duration(seconds: 8)));
   try {
-    final mp4 = await getVideoMp4(rr.video, s.iso);
+    final mp4 = await getVideoMp4(rr.video, iso);
     messenger.hideCurrentSnackBar();
     if (!context.mounted) return;
     if (mp4 == null) {
       await launchUrl(Uri.parse(rr.video), mode: LaunchMode.externalApplication);
       return;
     }
-    final race = s.race(city, r);
+    final race = _raceOf(iso, city, r);
     final rows = <FilmRow>[];
     for (final no in rr.sira.take(4)) {
       String nm = '';
@@ -46,7 +94,7 @@ Future<void> _openFilm(BuildContext context, String city, int r) async {
       }
       rows.add(FilmRow(no, nm, rr.gny[no]));
     }
-    final p = s.iso.split('-');
+    final p = iso.split('-');
     await showRaceFilm(context, url: mp4, race: r, city: city, dateLabel: '${p[2]}.${p[1]}.${p[0]}', rows: rows);
   } catch (_) {
     messenger.hideCurrentSnackBar();
@@ -59,25 +107,89 @@ List<Map> _maps(dynamic v) => ((v as List?) ?? const []).whereType<Map>().toList
 
 /// Web'deki kupon kartının aynısı: oyun türüne göre sütunlar, geliş sırası, tuttu/yattı işaretleri,
 /// kolon × tutar × misli satırı ve ikramiye çubuğu.
-class CouponView extends StatelessWidget {
+class CouponView extends StatefulWidget {
   final Map<String, dynamic> cp;
   final int ts;
   final AppColors? colors;
   const CouponView(this.cp, {super.key, this.ts = 0, this.colors});
 
+  @override
+  State<CouponView> createState() => _CouponViewState();
+}
+
+class _CouponViewState extends State<CouponView> {
+  Map<String, dynamic> get cp => widget.cp;
+  int get ts => widget.ts;
+  AppColors? get colors => widget.colors;
+
+  bool _listening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _kick();
+  }
+
+  @override
+  void didUpdateWidget(CouponView o) {
+    super.didUpdateWidget(o);
+    _kick();
+  }
+
+  @override
+  void dispose() {
+    if (_listening) TjkStore.i.removeListener(_onStore);
+    super.dispose();
+  }
+
+  // Kuponun günü (iso yoksa paylaşım zamanından)
+  String _isoOf() {
+    final v = (cp['iso'] ?? '').toString();
+    if (v.isNotEmpty || ts <= 0) return v;
+    final t = DateTime.fromMillisecondsSinceEpoch(ts);
+    return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  }
+
+  void _onStore() {
+    if (!mounted) return;
+    // Mağazada başka gün seçildiyse bu kuponun gününü kendimiz yükleriz
+    if (_isoOf() != TjkStore.i.iso) _kick();
+    setState(() {});
+  }
+
+  // Koşu sonuçları/videoları henüz yüklenmediyse kuponun günü için kendisi yükler
+  void _kick() {
+    final iso = _isoOf();
+    final city = (cp['city'] ?? '').toString();
+    if (iso.isEmpty || city.isEmpty || iso.compareTo(isoToday()) > 0) return;
+    final s = TjkStore.i;
+    if (!_listening) {
+      s.addListener(_onStore);
+      _listening = true;
+    }
+    if (iso == s.iso) {
+      s.ensureLoaded().then((_) => s.refreshResults());
+    } else {
+      _loadDay(iso, city).then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
   // Bu koşunun videosu varsa koşu numarasını döndürür (yoksa null)
   int? _film(dynamic r) {
     final n = (r as num?)?.toInt() ?? 0;
     final city = (cp['city'] ?? '').toString();
-    if (n <= 0 || (cp['iso'] ?? '').toString() != TjkStore.i.iso) return null;
-    final v = TjkStore.i.results[city]?[n]?.video ?? '';
+    final iso = _isoOf();
+    if (n <= 0 || iso.isEmpty) return null;
+    final v = _resultOf(iso, city, n)?.video ?? '';
     return v.isEmpty ? null : n;
   }
 
   Widget _playBtn(AppColors c, int r) => Builder(
         builder: (ctx) => GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _openFilm(ctx, (cp['city'] ?? '').toString(), r),
+          onTap: () => _openFilm(ctx, _isoOf(), (cp['city'] ?? '').toString(), r),
           child: Padding(
             padding: const EdgeInsets.only(right: 5),
             child: Container(
