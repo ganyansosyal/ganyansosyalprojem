@@ -27,6 +27,10 @@ jobs:
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # LevelPlay reklam SDK'sı ağ durumu izni ister
           sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          # Reklam kimliği izni (Android 12+)
+          sed -i 's#<application#<uses-permission android:name="com.google.android.gms.permission.AD_ID"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          # LevelPlay Unity Ads adaptörü (Android Gradle bağımlılığı)
+          printf '\ndependencies {\n    implementation("com.unity3d.ads-mediation:unityads-adapter:5.15.0")\n}\n' >> android/app/build.gradle.kts
           # Kupon görselini galeriye kaydetmek için (Android 9 ve altı)
           sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # Impeller çizim motoru bazı telefonlarda kaydırmada takılıyor: kapat
