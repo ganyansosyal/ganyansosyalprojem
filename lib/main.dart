@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
@@ -34,6 +35,9 @@ Future<void> main() async {
     } catch (_) {}
   }
   await initFirebase();
+  try {
+    await MobileAds.instance.initialize();
+  } catch (_) {}
   Preload.start(); // akış verisi splash sürerken arka planda gelsin
   runApp(const GanyanApp());
 }

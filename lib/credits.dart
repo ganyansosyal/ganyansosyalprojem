@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'auth_service.dart';
 import 'theme.dart';
@@ -57,64 +60,65 @@ class Credits {
   }
 }
 
-/// TEST MODU: true iken video yerine 5 sn geri sayım yapılır.
-/// AdMob eklenince false yapılıp aşağıdaki _playVideo içine reklam konacak.
-const bool kTestVideo = true;
+/// AdMob ödüllü reklam birimi.
+/// TEST kimliği: gerçek hesaptan alınan reklam birimi kimliğiyle değiştirilecek.
+const String kRewardedUnitId = 'ca-app-pub-3940256099942544/5224354917';
 
-Future<bool> _playVideo(BuildContext context) async {
-  // TODO: AdMob ödüllü reklam burada gösterilecek, izlenirse true dönecek.
-  await showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const _TestVideo(),
+bool _adBusy = false;
+
+/// Ödüllü reklamı yükler ve gösterir. Kullanıcı sonuna kadar izlerse true döner.
+Future<bool> _playVideo() {
+  final done = Completer<bool>();
+  var earned = false;
+  RewardedAd.load(
+    adUnitId: kRewardedUnitId,
+    request: const AdRequest(),
+    rewardedAdLoadCallback: RewardedAdLoadCallback(
+      onAdLoaded: (ad) {
+        ad.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (a) {
+            a.dispose();
+            if (!done.isCompleted) done.complete(earned);
+          },
+          onAdFailedToShowFullScreenContent: (a, e) {
+            a.dispose();
+            if (!done.isCompleted) done.complete(false);
+          },
+        );
+        ad.show(onUserEarnedReward: (_, __) => earned = true);
+      },
+      onAdFailedToLoad: (e) {
+        if (!done.isCompleted) done.complete(false);
+      },
+    ),
   );
-  return true;
-}
-
-class _TestVideo extends StatefulWidget {
-  const _TestVideo();
-  @override
-  State<_TestVideo> createState() => _TestVideoState();
-}
-
-class _TestVideoState extends State<_TestVideo> {
-  int _s = 5;
-  @override
-  void initState() {
-    super.initState();
-    _tick();
-  }
-
-  Future<void> _tick() async {
-    while (_s > 0) {
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-      setState(() => _s--);
-    }
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Sponsor videosu (test)'),
-            const SizedBox(height: 12),
-            Text('$_s', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w800)),
-          ]),
-        ),
-      );
+  return done.future.timeout(const Duration(seconds: 25), onTimeout: () => false);
 }
 
 Future<void> watchVideoForCredit(BuildContext context) async {
   final me = profileNotifier.value;
-  if (me == null) return;
-  final ok = await _playVideo(context);
-  if (!ok) return;
-  await Credits.add(me.uid);
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!')));
+  if (me == null || _adBusy) return;
+  _adBusy = true;
+  final sm = ScaffoldMessenger.of(context);
+  sm
+    ..hideCurrentSnackBar()
+    ..showSnackBar(const SnackBar(content: Text('Reklam yükleniyor...'), duration: Duration(seconds: 3)));
+  try {
+    final ok = await _playVideo();
+    if (ok) {
+      await Credits.add(me.uid);
+      sm
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!')));
+    } else {
+      sm
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.')));
+    }
+  } catch (_) {
+    sm.showSnackBar(const SnackBar(content: Text('Bir hata oldu. Tekrar dene.')));
+  } finally {
+    _adBusy = false;
   }
 }
 
