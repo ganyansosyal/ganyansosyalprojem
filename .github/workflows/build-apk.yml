@@ -25,6 +25,8 @@ jobs:
           git checkout -- pubspec.yaml lib/main.dart
           rm -rf test
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+          # LevelPlay reklam SDK'sı ağ durumu izni ister
+          sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # Kupon görselini galeriye kaydetmek için (Android 9 ve altı)
           sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # Impeller çizim motoru bazı telefonlarda kaydırmada takılıyor: kapat
