@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'auth_service.dart';
 import 'athist_prefetch.dart';
 import 'bets.dart';
+import 'credits.dart';
 import 'film.dart';
 import 'live.dart';
 import 'settle.dart';
@@ -477,7 +478,7 @@ class _PredictPageState extends State<PredictPage> {
                 child: Row(children: [
                   Icon(Icons.info_outline_rounded, color: col.red, size: 18),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('Paylaşılan kupon silinemez.', style: jakarta(12.5, FontWeight.w700, col.red))),
+                  Expanded(child: Text(_admin ? 'Paylaşılan kupon silinemez.' : 'Paylaşılan kupon silinemez · 1 kredi harcanır.', style: jakarta(12.5, FontWeight.w700, col.red))),
                 ]),
               ),
               const SizedBox(height: 20),
@@ -512,6 +513,10 @@ class _PredictPageState extends State<PredictPage> {
       },
     );
     if (ok != true) return;
+    if (!_admin && !await Credits.spend(me.uid)) {
+      _toast('Krediniz bitti. Video izleyip kredi kazanın.');
+      return;
+    }
     final db = FirebaseFirestore.instance;
     final ts = DateTime.now().millisecondsSinceEpoch;
     final id = '${ts}_${me.uid}';
