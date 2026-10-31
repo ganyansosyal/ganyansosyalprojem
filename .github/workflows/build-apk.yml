@@ -56,6 +56,7 @@ jobs:
           '''
           s=s.replace('android {',block,1)
           s=s.replace('signingConfigs.getByName("debug")','signingConfigs.getByName("release")')
+          s=s.replace('signingConfig = signingConfigs.getByName("release")','signingConfig = signingConfigs.getByName("release")\n            isMinifyEnabled = false\n            isShrinkResources = false',1)
           open(p,'w').write(s)
           PY
 
@@ -64,7 +65,7 @@ jobs:
       - name: Uygulama simgesini üret
         run: dart run flutter_launcher_icons
 
-      - run: flutter build apk --release
+      - run: flutter build apk --release --no-shrink
         env:
           KS_PASS: ${{ secrets.KS_PASS }}
           KS_ALIAS: ${{ secrets.KS_ALIAS }}
