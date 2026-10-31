@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'auth_service.dart';
+import 'levelplay_ads.dart';
 import 'theme.dart';
 
 /* =====================================================================
@@ -65,16 +66,27 @@ class Credits {
 const String kRewardedUnitId = 'ca-app-pub-1340335815297540/1095854500';
 
 bool _adBusy = false;
+String _admobErr = '';
 
-/// Ödüllü reklamı yükler ve gösterir. Kullanıcı sonuna kadar izlerse true döner.
-Future<bool> _playVideo() {
+/// Önce LevelPlay (ironSource + Unity Ads + AdMob mediation), reklam yoksa doğrudan AdMob.
+Future<bool> _playVideo() async {
+  _admobErr = '';
+  final r = await LevelPlayAds.instance.playRewarded();
+  if (r != null) return r;
+  return _playAdMobDirect();
+}
+
+/// Doğrudan AdMob ödüllü reklamı (yedek). Kullanıcı sonuna kadar izlerse true döner.
+Future<bool> _playAdMobDirect() {
   final done = Completer<bool>();
   var earned = false;
+  var loaded = false;
   RewardedAd.load(
     adUnitId: kRewardedUnitId,
     request: const AdRequest(),
     rewardedAdLoadCallback: RewardedAdLoadCallback(
       onAdLoaded: (ad) {
+        loaded = true;
         ad.fullScreenContentCallback = FullScreenContentCallback(
           onAdDismissedFullScreenContent: (a) {
             a.dispose();
@@ -88,11 +100,16 @@ Future<bool> _playVideo() {
         ad.show(onUserEarnedReward: (_, __) => earned = true);
       },
       onAdFailedToLoad: (e) {
+        _admobErr = 'AdMob ${e.code}: ${e.message}';
         if (!done.isCompleted) done.complete(false);
       },
     ),
   );
-  return done.future.timeout(const Duration(seconds: 25), onTimeout: () => false);
+  // Zaman aşımı sadece YÜKLEME için. Reklam açıldıktan sonra izleme süresi sayılmaz.
+  Future.delayed(const Duration(seconds: 25), () {
+    if (!loaded && !done.isCompleted) done.complete(false);
+  });
+  return done.future;
 }
 
 Future<void> watchVideoForCredit(BuildContext context) async {
@@ -109,11 +126,14 @@ Future<void> watchVideoForCredit(BuildContext context) async {
       await Credits.add(me.uid);
       sm
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!')));
+        ..showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!'), duration: const Duration(seconds: 2)));
     } else {
       sm
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.')));
+        ..showSnackBar(SnackBar(
+          duration: const Duration(seconds: 12),
+          content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.\n[test] LevelPlay: ${LevelPlayAds.instance.lastError.isEmpty ? "-" : LevelPlayAds.instance.lastError}\n$_admobErr'),
+        ));
     }
   } catch (_) {
     sm.showSnackBar(const SnackBar(content: Text('Bir hata oldu. Tekrar dene.')));
@@ -122,9 +142,9 @@ Future<void> watchVideoForCredit(BuildContext context) async {
   }
 }
 
-/// Ana sayfadaki kredi şeridi.
-class CreditBar extends StatelessWidget {
-  const CreditBar({super.key});
+/// Ana sayfadaki küçük kredi hapı (Öne Çıkan Tahminciler başlığının sağında).
+class CreditChip extends StatelessWidget {
+  const CreditChip({super.key});
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
@@ -133,23 +153,35 @@ class CreditBar extends StatelessWidget {
     return StreamBuilder<int>(
       stream: Credits.watch(uid),
       builder: (_, snap) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        height: 34,
+        padding: const EdgeInsets.fromLTRB(4, 0, 3, 0),
         decoration: BoxDecoration(
-          color: c.gold.withAlpha(30),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: c.gold.withAlpha(110), width: 1.4),
+          color: c.ac.withAlpha(30),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: c.ac.withAlpha(100), width: 0.8),
         ),
-        child: Row(children: [
-          Text('KREDİ', style: jakarta(9.5, FontWeight.w800, c.gold).copyWith(letterSpacing: 1.1)),
-          const SizedBox(width: 10),
-          Text('${snap.data ?? Credits.welcome}', style: jakarta(20, FontWeight.w800, c.gold)),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: () => watchVideoForCredit(context),
-            style: FilledButton.styleFrom(backgroundColor: c.gold, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: Text('Video izle +${Credits.videoReward}', style: jakarta(13, FontWeight.w800, Colors.white)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(color: c.ac, shape: BoxShape.circle),
+            child: Icon(Icons.monetization_on_outlined, size: 16, color: c.on),
+          ),
+          const SizedBox(width: 6),
+          Text('${snap.data ?? Credits.welcome}', style: jakarta(14, FontWeight.w800, c.ac)),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => watchVideoForCredit(context),
+            child: Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(color: c.ac, borderRadius: BorderRadius.circular(14)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.play_arrow_rounded, size: 15, color: c.on),
+                const SizedBox(width: 2),
+                Text('Video izle +${Credits.videoReward}', style: jakarta(11, FontWeight.w800, c.on)),
+              ]),
+            ),
           ),
         ]),
       ),
