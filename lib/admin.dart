@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'auth_service.dart';
+import 'credits.dart';
 import 'feed.dart' show Post, fmtStamp;
 import 'frames.dart';
 import 'profile.dart' show ProfileRoute;
@@ -1957,6 +1958,11 @@ Future<void> showUserAdminMenu(BuildContext context, {required String uid, requi
           tile(Icons.diamond_rounded, 'Puan / Hediye çerçeve', 'Puan ver, çerçeve hediye et, moderatör yap, kupon şeridi', [const Color(0xFFA855F7), const Color(0xFFDB2777)], () {
             Navigator.pop(ctx);
             showDialog(context: context, builder: (_) => _GiftDialog(uid: uid, name: name, targetAdmin: targetAdmin, parent: context));
+          }),
+        if (isAdminNotifier.value)
+          tile(Icons.toll_rounded, 'Kredi ver', 'Kupon paylaşma kredisi ekle veya düş', [const Color(0xFFFBBF24), const Color(0xFFF59E0B)], () {
+            Navigator.pop(ctx);
+            adminGiveCreditDialog(context, uid, name);
           }),
         if (isAdminNotifier.value)
           tile(

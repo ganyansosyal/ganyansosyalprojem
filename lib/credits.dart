@@ -36,6 +36,17 @@ class Credits {
     });
   }
 
+  /// Yönetici: istediği kullanıcıya kredi ekler (eksi yazarsa düşer, 0'ın altına inmez).
+  static Future<int> adminAdd(String uid, int n) {
+    final ref = _db.collection('users').doc(uid);
+    return _db.runTransaction<int>((t) async {
+      final cur = _read((await t.get(ref)).data());
+      final v = (cur + n) < 0 ? 0 : cur + n;
+      t.set(ref, {'credits': v}, SetOptions(merge: true));
+      return v;
+    });
+  }
+
   /// Kredi ekler (video izleyince çağrılacak).
   static Future<void> add(String uid, {int n = videoReward}) {
     final ref = _db.collection('users').doc(uid);
@@ -139,5 +150,46 @@ class CreditBar extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// Yönetici penceresi: kullanıcıya kredi ver.
+Future<void> adminGiveCreditDialog(BuildContext context, String uid, String name) async {
+  final ctl = TextEditingController();
+  final n = await showDialog<int>(
+    context: context,
+    builder: (dctx) {
+      final c = AppColors.of(dctx);
+      return AlertDialog(
+        backgroundColor: c.sf,
+        title: Text('Kredi ver: $name', style: jakarta(16, FontWeight.w800, c.tx)),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(signed: true),
+          decoration: const InputDecoration(hintText: 'Örn. 100 (eksi yazarsan düşer)'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Vazgeç')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dctx, int.tryParse(ctl.text.trim())),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      );
+    },
+  );
+  if (n == null || n == 0) return;
+  try {
+    final v = await Credits.adminAdd(uid, n);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('$name: yeni kredi $v')));
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kredi verilemedi.')));
+    }
   }
 }
