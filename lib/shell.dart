@@ -14,6 +14,7 @@ import 'preload.dart';
 import 'results.dart';
 import 'settle.dart';
 import 'theme.dart';
+import 'update_check.dart';
 import 'user_search.dart';
 
 class Shell extends StatefulWidget {
@@ -54,6 +55,7 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    UpdateCheck.run();
     final u = profileNotifier.value?.uid ?? '';
     if (u.isNotEmpty) {
       Settler.start(u);
