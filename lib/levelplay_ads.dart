@@ -15,6 +15,9 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
   LevelPlayAds._();
   static final LevelPlayAds instance = LevelPlayAds._();
 
+  /// Ekranda göstermek için son hata (test aşaması).
+  String lastError = '';
+
   Completer<bool>? _init;
   LevelPlayRewardedAd? _ad;
   Completer<bool>? _load;
@@ -30,6 +33,7 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
       final req = LevelPlayInitRequest.builder(kLevelPlayAppKey).build();
       LevelPlay.init(initRequest: req, initListener: this);
     } catch (e) {
+      lastError = 'init: $e';
       debugPrint('LevelPlay init hata: $e');
       if (!c.isCompleted) c.complete(false);
     }
@@ -41,9 +45,13 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
   /// false = izlendi ama ödül yok (erken kapandı)
   /// null  = reklam yüklenemedi/gösterilemedi (yedek reklama geç)
   Future<bool?> playRewarded() async {
+    lastError = '';
     try {
       final ok = await init().timeout(const Duration(seconds: 10), onTimeout: () => false);
-      if (!ok) return null;
+      if (!ok) {
+        if (lastError.isEmpty) lastError = 'init zaman aşımı';
+        return null;
+      }
 
       _ad ??= LevelPlayRewardedAd(adUnitId: kLevelPlayRewardedAdUnitId)..setListener(this);
       final ad = _ad!;
@@ -57,13 +65,17 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
         ad.loadAd();
         ready = await _load!.future.timeout(const Duration(seconds: 12), onTimeout: () => false);
       }
-      if (!ready) return null;
+      if (!ready) {
+        if (lastError.isEmpty) lastError = 'yükleme zaman aşımı';
+        return null;
+      }
 
       _earned = false;
       _show = Completer<bool?>();
       ad.showAd();
       return await _show!.future.timeout(const Duration(minutes: 3), onTimeout: () => _earned);
     } catch (e) {
+      lastError = 'hata: $e';
       debugPrint('LevelPlay hata: $e');
       return null;
     }
@@ -83,6 +95,7 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
 
   @override
   void onInitFailed(LevelPlayInitError error) {
+    lastError = 'init başarısız: $error';
     debugPrint('LevelPlay init başarısız: $error');
     final c = _init;
     if (c != null && !c.isCompleted) c.complete(false);
@@ -98,6 +111,7 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
 
   @override
   void onAdLoadFailed(LevelPlayAdError error) {
+    lastError = 'yükleme: $error';
     debugPrint('LevelPlay yükleme hatası: $error');
     final l = _load;
     if (l != null && !l.isCompleted) l.complete(false);
@@ -108,6 +122,7 @@ class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener
 
   @override
   void onAdDisplayFailed(LevelPlayAdError error, LevelPlayAdInfo adInfo) {
+    lastError = 'gösterim: $error';
     debugPrint('LevelPlay gösterim hatası: $error');
     _finishShow(null);
   }

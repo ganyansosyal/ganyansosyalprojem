@@ -66,9 +66,11 @@ class Credits {
 const String kRewardedUnitId = 'ca-app-pub-1340335815297540/1095854500';
 
 bool _adBusy = false;
+String _admobErr = '';
 
 /// Önce LevelPlay (ironSource + Unity Ads + AdMob mediation), reklam yoksa doğrudan AdMob.
 Future<bool> _playVideo() async {
+  _admobErr = '';
   final r = await LevelPlayAds.instance.playRewarded();
   if (r != null) return r;
   return _playAdMobDirect();
@@ -96,6 +98,7 @@ Future<bool> _playAdMobDirect() {
         ad.show(onUserEarnedReward: (_, __) => earned = true);
       },
       onAdFailedToLoad: (e) {
+        _admobErr = 'AdMob ${e.code}: ${e.message}';
         if (!done.isCompleted) done.complete(false);
       },
     ),
@@ -121,7 +124,10 @@ Future<void> watchVideoForCredit(BuildContext context) async {
     } else {
       sm
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.')));
+        ..showSnackBar(SnackBar(
+          duration: const Duration(seconds: 12),
+          content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.\n[test] LevelPlay: ${LevelPlayAds.instance.lastError.isEmpty ? "-" : LevelPlayAds.instance.lastError}\n$_admobErr'),
+        ));
     }
   } catch (_) {
     sm.showSnackBar(const SnackBar(content: Text('Bir hata oldu. Tekrar dene.')));
