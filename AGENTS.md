@@ -24,23 +24,29 @@ Kullanıcı ödüllü reklam (AdMob) izler, KREDİ kazanır. Kredi sadece kupon 
 - .github/workflows/build-apk.yml ve build-aab.yml: AndroidManifest'e AdMob APPLICATION_ID ekleyen sed satırı
 - firestore.rules: Firebase konsolundan Rules sekmesine yapıştırılır (results bölümündeki bozuk yazımlar düzeltildi)
 
-## Şu anki durum
-- Kod yazıldı, DERLENMEDİ (ortamda Flutter yok). 8 dosya kullanıcıya verildi, yüklemesi ve GitHub Actions'ta derlemesi bekleniyor. Hata çıkarsa hata mesajı istenecek.
-- Reklam kimlikleri şu an Google TEST kimlikleri (gerçek para kazandırmaz):
-  - App ID: ca-app-pub-3940256099942544~3347511713 (iki workflow dosyasında)
-  - Ödüllü birim: ca-app-pub-3940256099942544/5224354917 (credits.dart içinde `kRewardedUnitId`)
-- AdMob hesabı AÇILDI (Türkiye, TL). Panelde 4 görev var, "Ödeme ayrıntılarını ekle" yapılmadı.
-- Uygulama AdMob'a HENÜZ EKLENMEDİ, gerçek kimlikler yok.
-- Google Play kapalı test yarın bitiyor, kullanıcı yeni sürümü yükleyecek.
+## Şu anki durum (31 Ekim 2026, akşam)
+- AdMob'da uygulama EKLENDİ (GanyanSosyal, Android, Play'de listelenmedi) ve Ödüllü reklam birimi OLUŞTURULDU. Panelde "İnceleme gerekli" uyarısı normal, Play'de yayınlanınca geçer.
+- GERÇEK kimlikler koda konuldu:
+  - App ID: ca-app-pub-1340335815297540~7852834540 (build-apk.yml ve build-aab.yml, 33. satır sed)
+  - Ödüllü birim: ca-app-pub-1340335815297540/1095854500 (lib/credits.dart `kRewardedUnitId`)
+- DİKKAT: Bu sürümde GERÇEK reklam gelir. Kendi telefonunda reklama TIKLAMA (hesap kapanır). Test cihazı henüz eklenmedi.
+- Derleme hatası 1 (çözüldü): google_mobile_ads 5.3.1 yeni Gradle ile uyumsuz ("Could not get unknown property 'all'"). pubspec.yaml'da `google_mobile_ads: ^9.1.0` yapıldı (Flutter >=3.38.1 / Dart ^3.10 ister).
+- Derleme geçti, APK yüklendi AMA açılışta çöküyor: "Unable to get provider androidx.startup.InitializationProvider ... Failed to create an instance of androidx.work.impl.WorkDatabase". Sebep büyük ihtimal R8 küçültmesi (Room/WorkDatabase sınıfı silinmiş).
+- Yapılan düzeltme: build-apk.yml ve build-aab.yml içindeki python bloğuna release için `isMinifyEnabled = false` ve `isShrinkResources = false` eklendi. Kullanıcı bu dosyaları GitHub'a yükleyip APK'yı YENİDEN derliyor (ilk deneme erken açılmış olabilir). Hata ekranında r8 isimleri (eh5, xy2, m43) görünüyorsa kurulu APK eski ayarlıdır.
+- Hâlâ çökerse sıradaki fikirler: (a) hata ekranının en alt "Caused by" satırını iste (asıl sebep orada, örn. ClassNotFound WorkDatabase_Impl / SQLite / Room); (b) workflow'a proguard kuralı ekle (-keep class androidx.work.** , -keep class * extends androidx.room.RoomDatabase); (c) google_mobile_ads'i test için ^8.x'e düşür veya android/gradle'a androidx.work/room sürümünü sabitle.
+- Eski APK yüklüyse önce telefondan sil, yenisini kur.
 
 ## Sıradaki adımlar
-1. Kullanıcı 8 dosyayı yükler, GitHub Actions "APK derle" çalıştırır. Derleme hatası varsa düzelt.
-2. Telefonda test: Özel DNS KAPALI olmalı (dns.adguard.com reklamı ve admob.google.com'u engelliyordu). "Video izle" test reklamı açmalı, kredi +100 gelmeli.
-3. AdMob'da: Uygulamalar > Uygulama ekle > Android > Play'de yayınlanmadı > ad GanyanSosyal. Kullanıcıdan App ID (~ işaretli) ve Ödüllü reklam birimi ID'si (/ işaretli) iste.
-4. İki kimliği koda koy: 2 workflow dosyasındaki APPLICATION_ID ve credits.dart'taki kRewardedUnitId. Dosyaları yeniden ver.
-5. Kendi cihazını AdMob'da TEST CİHAZI olarak ekle (kendi gerçek reklamına tıklama/izleme hesabı kapattırır).
-6. AdMob'da ödeme ayrıntılarını doldur. Play Console > Veri güvenliği: "Reklam kimliği kullanılıyor = Evet".
-7. Play'e gerçek kimlikli sürüm yükle (versiyon numarasını artır).
+1. Yeni APK açılıyor mu bak. Açılırsa telefonda test: Özel DNS KAPALI. KREDİ şeridi görünür, kredi yetmeyince turuncu "Video izle +100", reklamı sonuna kadar izle -> +100 kredi, kupon paylaşınca kredi düşer, admin muaf + "Kredi ver" çalışır. Reklam yeni birimde bir saate kadar gelmeyebilir.
+2. Kendi cihazını AdMob'da TEST CİHAZI yap (AdMob > Ayarlar > Test cihazları, reklam kimliği ile).
+3. AdMob ödeme ayrıntılarını doldur. Play Console > Veri güvenliği: "Reklam kimliği kullanılıyor = Evet".
+4. Play yayınlanınca AdMob'da uygulamayı mağaza kaydına bağla (kimlikler değişmez).
+5. Play'e yeni sürüm yükle (versiyon numarasını artır, şu an 0.3.1+4). Kapalı test yarın (1 Kasım) bitiyor.
+
+## Notlar
+- Ödüllü reklamın kapatma/atlama süresini reklamveren belirler, ayar yok. Kod krediyi sadece ödül olayı gelince (sonuna kadar izlenince) verir, erken kapatana kredi yok.
+- Tahmini kazanç: Türkiye'de video başına kabaca 0,5-2 TL.
+- Telefondan .yml indirmek bazen olmuyor: GitHub'da dosyayı kalem simgesiyle elle düzenlet.
 
 ## Sonraya bırakılanlar
 - Hediye kredi (welcome=3) ve kupon bedeli ayarları gözden geçirilecek.
