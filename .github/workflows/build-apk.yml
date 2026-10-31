@@ -24,6 +24,8 @@ jobs:
           flutter create --platforms=android --org com.ganyansosyal --project-name ganyansosyal_native .
           git checkout -- pubspec.yaml lib/main.dart
           rm -rf test
+          # Play'deki uygulamanın paket adı (namespace aynı kalır, sadece applicationId değişir)
+          sed -i 's#applicationId = "[^"]*"#applicationId = "io.github.ganyansosyal.app"#' android/app/build.gradle.kts
           sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # LevelPlay reklam SDK'sı ağ durumu izni ister
           sed -i 's#<application#<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <application#' android/app/src/main/AndroidManifest.xml
