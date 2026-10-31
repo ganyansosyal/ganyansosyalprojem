@@ -414,7 +414,6 @@ class _FeedPageState extends State<FeedPage> {
             final head = <Widget>[
               _topRow(c, myScore, myRank, bugun),
               const SizedBox(height: 8),
-              const CreditBar(),
               _NextRaceBar(onOpen: widget.onOpenRace),
               _people(c, following),
               _filters(c, fc),
@@ -521,7 +520,9 @@ class _FeedPageState extends State<FeedPage> {
       padding: const EdgeInsets.only(top: 10, bottom: 4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: Text('Öne Çıkan Tahminciler', style: jakarta(16, FontWeight.w800, c.tx))),
+          Expanded(child: Text('Öne Çıkan Tahminciler', maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(16, FontWeight.w800, c.tx))),
+          const SizedBox(width: 6),
+          const CreditChip(),
           _rank.length > 5
               ? GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -534,7 +535,7 @@ class _FeedPageState extends State<FeedPage> {
                     ]),
                   ),
                 )
-              : Text('Puana göre', style: jakarta(11, FontWeight.w600, c.mu)),
+              : const SizedBox.shrink(),
         ]),
         const SizedBox(height: 6),
         if (top.isEmpty)

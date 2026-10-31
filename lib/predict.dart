@@ -114,7 +114,7 @@ class _PredictPageState extends State<PredictPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(t)));
+      ..showSnackBar(SnackBar(content: Text(t), duration: Duration(milliseconds: t.length < 30 ? 1200 : 3000)));
   }
 
   void _initCity() {
