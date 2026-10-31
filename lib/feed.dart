@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'auth_service.dart';
 import 'bets.dart';
 import 'coupon_view.dart';
+import 'credits.dart';
 import 'preload.dart';
 import 'share_sheet.dart';
 import 'scoring.dart';
@@ -413,6 +414,7 @@ class _FeedPageState extends State<FeedPage> {
             final head = <Widget>[
               _topRow(c, myScore, myRank, bugun),
               const SizedBox(height: 8),
+              const CreditBar(),
               _NextRaceBar(onOpen: widget.onOpenRace),
               _people(c, following),
               _filters(c, fc),

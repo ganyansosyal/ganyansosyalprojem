@@ -1,4 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+import 'auth_service.dart';
+import 'theme.dart';
 
 /* =====================================================================
    KREDİ SİSTEMİ
@@ -39,5 +43,101 @@ class Credits {
       final cur = _read((await t.get(ref)).data());
       t.set(ref, {'credits': cur + n}, SetOptions(merge: true));
     });
+  }
+}
+
+/// TEST MODU: true iken video yerine 5 sn geri sayım yapılır.
+/// AdMob eklenince false yapılıp aşağıdaki _playVideo içine reklam konacak.
+const bool kTestVideo = true;
+
+Future<bool> _playVideo(BuildContext context) async {
+  // TODO: AdMob ödüllü reklam burada gösterilecek, izlenirse true dönecek.
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const _TestVideo(),
+  );
+  return true;
+}
+
+class _TestVideo extends StatefulWidget {
+  const _TestVideo();
+  @override
+  State<_TestVideo> createState() => _TestVideoState();
+}
+
+class _TestVideoState extends State<_TestVideo> {
+  int _s = 5;
+  @override
+  void initState() {
+    super.initState();
+    _tick();
+  }
+
+  Future<void> _tick() async {
+    while (_s > 0) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+      setState(() => _s--);
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Sponsor videosu (test)'),
+            const SizedBox(height: 12),
+            Text('$_s', style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
+}
+
+Future<void> watchVideoForCredit(BuildContext context) async {
+  final me = profileNotifier.value;
+  if (me == null) return;
+  final ok = await _playVideo(context);
+  if (!ok) return;
+  await Credits.add(me.uid);
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!')));
+  }
+}
+
+/// Ana sayfadaki kredi şeridi.
+class CreditBar extends StatelessWidget {
+  const CreditBar({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final uid = profileNotifier.value?.uid ?? '';
+    if (uid.isEmpty) return const SizedBox.shrink();
+    return StreamBuilder<int>(
+      stream: Credits.watch(uid),
+      builder: (_, snap) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: c.gold.withAlpha(30),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: c.gold.withAlpha(110), width: 1.4),
+        ),
+        child: Row(children: [
+          Text('KREDİ', style: jakarta(9.5, FontWeight.w800, c.gold).copyWith(letterSpacing: 1.1)),
+          const SizedBox(width: 10),
+          Text('${snap.data ?? Credits.welcome}', style: jakarta(20, FontWeight.w800, c.gold)),
+          const Spacer(),
+          FilledButton.icon(
+            onPressed: () => watchVideoForCredit(context),
+            style: FilledButton.styleFrom(backgroundColor: c.gold, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            label: Text('Video izle +${Credits.videoReward}', style: jakarta(13, FontWeight.w800, Colors.white)),
+          ),
+        ]),
+      ),
+    );
   }
 }
