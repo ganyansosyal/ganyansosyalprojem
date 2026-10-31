@@ -130,9 +130,9 @@ Future<void> watchVideoForCredit(BuildContext context) async {
     } else {
       sm
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          duration: const Duration(seconds: 12),
-          content: Text('Reklam yüklenemedi ya da sonuna kadar izlenmedi. Tekrar dene.\n[test] LevelPlay: ${LevelPlayAds.instance.lastError.isEmpty ? "-" : LevelPlayAds.instance.lastError}\n$_admobErr'),
+        ..showSnackBar(const SnackBar(
+          duration: Duration(seconds: 4),
+          content: Text('Şu an uygun reklam yok. Biraz sonra tekrar dene.'),
         ));
     }
   } catch (_) {
