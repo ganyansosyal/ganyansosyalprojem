@@ -29,6 +29,8 @@ jobs:
           sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>\n    <application#' android/app/src/main/AndroidManifest.xml
           # Impeller çizim motoru bazı telefonlarda kaydırmada takılıyor: kapat
           sed -i 's#</application>#    <meta-data android:name="io.flutter.embedding.android.EnableImpeller" android:value="false"/>\n    </application>#' android/app/src/main/AndroidManifest.xml
+          # AdMob uygulama kimliği (şimdilik Google TEST kimliği; gerçek kimlikle değiştirilecek)
+          sed -i 's#</application>#    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>\n    </application>#' android/app/src/main/AndroidManifest.xml
           sed -i 's#android:label="[^"]*"#android:label="GanyanSosyal"#' android/app/src/main/AndroidManifest.xml
           # Firebase eklentileri en az Android 6 (API 23) ister
           sed -i 's/minSdk = flutter.minSdkVersion/minSdk = maxOf(flutter.minSdkVersion, 23)/' android/app/build.gradle.kts 2>/dev/null || true
