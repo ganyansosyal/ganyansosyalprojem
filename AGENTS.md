@@ -42,6 +42,12 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 - DİKKAT: GERÇEK reklam gelir. Kendi telefonunda reklama TIKLAMA (hesap kapanır). Test cihazı eklenmedi (LevelPlay > Setup > Test devices ve AdMob > Test cihazları).
 - Eski APK yüklüyse önce telefondan sil, yenisini kur.
 
+## Test sonucu (22:12) ve yapılanlar
+- APK derlendi, uygulama açılıyor, "Video izle" çalışıyor. Hata mesajı artık ekranda ([test] satırı, reklam çalışınca kaldırılacak).
+- LevelPlay: kod 509 "No fill" (SDK çalışıyor, ad unit kimliği doğru, reklam yok). AdMob direkt: kod 3 "Account not approved yet" => AdMob hesabı ONAYSIZ (adres/ödeme/telefon doğrulaması, uygulamayı Play'e bağla). Eski "reklam gelmiyor" sebebi buydu.
+- 22:20: Unity Ads adaptörü workflow'lara eklendi: `implementation("com.unity3d.ads-mediation:unityads-adapter:5.15.0")` (build.gradle.kts'ye append) + AD_ID izni. Dokümandan doğrulandı. Uyumluluk (adaptör 5.x <-> plugin 9.4.0) test edilecek.
+- AdMob adaptörü (admob-adapter:5.19.0) bilerek EKLENMEDİ: kendi içinde yeni Google Mobile Ads SDK taşır, google_mobile_ads ile çakışabilir. AdMob onaylanınca düşünülecek.
+
 ## Sürüm numarası (21:50)
 - Şimdi test aşaması: sürüm 0.3.1+5 kalıyor, DEĞİŞTİRME. Test APK'sı için numara artırmaya gerek yok.
 - Test bitip Play'e yüklenecekse `pubspec.yaml` içindeki `version:` satırı artırılır (örn. 0.3.1+6). Play'e her yüklemede `+` sonrası sayı büyümeli.
