@@ -1,6 +1,6 @@
 # GanyanSosyal – Kredi + AdMob + LevelPlay işi (nerede kaldık)
 
-Tarih: 31 Ekim 2026 (akşam güncellendi). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
+Tarih: 31 Ekim 2026 (21:45'te güncellendi). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
 Kullanıcı tercihi: kısa, basit, adım adım anlat. Kodu indirilebilir DOSYA olarak ver (tek tek), GitHub linki verme, sadece hangi klasöre konacağını yaz, zip verme (kullanıcı zip verirse bile çıktıyı tek tek dosya ver). Telefondan çalışıyor, ekran görüntüsü atar.
 
 ## Amaç
@@ -15,13 +15,13 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 - Kredi alanı: Firestore `users/{uid}.credits` (int). Alan yoksa varsayılan `Credits.welcome` = 3 (ayar sonraya bırakıldı, yükseltilecek).
 
 ## Dosyalar ve yerleri
-- lib/credits.dart: kredi servisi, `_playVideo()` önce LevelPlay, reklam yoksa `_playAdMobDirect()` (eski doğrudan AdMob), ana sayfa KREDİ şeridi, admin kredi penceresi
+- lib/credits.dart: kredi servisi, `_playVideo()` önce LevelPlay, reklam yoksa `_playAdMobDirect()` (eski doğrudan AdMob), ana sayfada küçük kredi hapı `CreditChip` (Öne Çıkan Tahminciler başlığının sağında; eski büyük `CreditBar` şeridi kaldırıldı), admin kredi penceresi
 - lib/predict.dart: Paylaş butonu kredi kilidi, bakiye yazısı, kredi düşme
-- lib/feed.dart: ana sayfaya `CreditBar()` eklendi
+- lib/feed.dart: ana sayfaya `CreditChip()` eklendi (satır ~525)
 - lib/admin.dart: "Kredi ver" satırı
 - lib/main.dart: `MobileAds.instance.initialize()` + `LevelPlayAds.instance.init()` (arka planda)
 - lib/levelplay_ads.dart (YENİ): LevelPlay sarmalayıcı. `playRewarded()` -> true=izlendi, false=erken kapandı, null=reklam yok (yedeğe geç)
-- pubspec.yaml (ana klasör): `google_mobile_ads: ^9.1.0`, YENİ: `unity_levelplay_mediation: any`, `levelplay_admob_adapter: any`, `levelplay_unityads_adapter: any` (paket adları hafızadan yazıldı, DOĞRULANMADI). Sürüm 0.3.1+4
+- pubspec.yaml (ana klasör): `google_mobile_ads: ^9.1.0`, YENİ: `unity_levelplay_mediation: ^9.4.0` (docs.unity.com'dan doğrulandı). `levelplay_admob_adapter` ve `levelplay_unityads_adapter` pub.dev'de YOK (404), silindi. Adaptörler Flutter paketi değil, Android Gradle bağımlılığı olabilir; satırları Unity docs > LevelPlay SDK for Android > Networks sayfalarından alınacak. Plugin 9.3+ Kotlin 2.0+ ister. Android'e play-services-ads-identifier:18.2.0, play-services-appset:16.1.0 ve AD_ID izni gerekebilir. Sürüm 0.3.1+5
 - .github/workflows/build-apk.yml ve build-aab.yml: AndroidManifest'e AdMob APPLICATION_ID ekleyen sed satırı + YENİ: ACCESS_NETWORK_STATE izni sed satırı (LevelPlay için)
 - firestore.rules: Firebase konsolundan Rules sekmesine yapıştırılır (results bölümündeki bozuk yazımlar düzeltildi)
 
@@ -42,6 +42,11 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 - DİKKAT: GERÇEK reklam gelir. Kendi telefonunda reklama TIKLAMA (hesap kapanır). Test cihazı eklenmedi (LevelPlay > Setup > Test devices ve AdMob > Test cihazları).
 - Eski APK yüklüyse önce telefondan sil, yenisini kur.
 
+## Sürüm numarası (21:50)
+- Şimdi test aşaması: sürüm 0.3.1+5 kalıyor, DEĞİŞTİRME. Test APK'sı için numara artırmaya gerek yok.
+- Test bitip Play'e yüklenecekse `pubspec.yaml` içindeki `version:` satırı artırılır (örn. 0.3.1+6). Play'e her yüklemede `+` sonrası sayı büyümeli.
+- Sonraya kalan: LevelPlay çalışıyorsa sürümü artır, AAB derle, Play'e yükle.
+
 ## Sıradaki adımlar
 1. Yeni zip/dosyaları GitHub'a yükle, APK derle. Derleme hatası varsa hata metnini (en alttaki kırmızı satırlar) at, düzeltilsin.
 2. APK açılıyorsa test: Özel DNS KAPALI. Video izle butonu -> LevelPlay reklamı gelmeli. Gelmezse (Android logcat/hata) AdMob yedeği devreye girer. Reklam sonuna kadar izlenince +100 kredi.
@@ -49,6 +54,11 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 4. Reklam hâlâ azsa LevelPlay'e AppLovin veya Pangle ekle (Networks > Setup).
 5. LevelPlay/Unity/AdMob ödeme bilgilerini doldur. Unity Türkiye'ye ödeme koşullarını (alt limit, vergi formu) kayıttan önce teyit et. Play Console > Veri güvenliği: \"Reklam kimliği kullanılıyor = Evet\".
 6. Play yayınlanınca LevelPlay'de ve AdMob'da uygulamayı mağaza kaydına bağla (Not live yet -> Live app). Play'e yeni sürüm yükle (versiyonu artır, şu an 0.3.1+4). Kapalı test 1 Kasım'da bitiyor.
+
+## Zip temizlik uyarısı (31 Ekim akşam)
+- `lib/credits (1).dart` ESKİ kopya (CreditBar, LevelPlay yok). Sil. Doğrusu `lib/credits.dart`.
+- `lib/pubspec.yaml` ESKİ kopya (+4, google_mobile_ads ^5.3.0). Sil. Doğrusu ana klasördeki `pubspec.yaml` (+5, ^9.1.0, LevelPlay paketleri).
+- `lib/frames.dart` ile `assets/frames.dart` çift olabilir, kontrol et.
 
 ## Notlar
 - Ödüllü reklamın kapatma/atlama süresini reklamveren belirler, ayar yok. Kod krediyi sadece ödül olayı gelince (sonuna kadar izlenince) verir, erken kapatana kredi yok.
