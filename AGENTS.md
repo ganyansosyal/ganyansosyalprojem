@@ -1,7 +1,36 @@
 # GanyanSosyal – Kredi + AdMob + LevelPlay işi (nerede kaldık)
 
-Tarih: 31 Ekim 2026 (21:45'te güncellendi). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
-Kullanıcı tercihi: kısa, basit, adım adım anlat. Kodu indirilebilir DOSYA olarak ver (tek tek), GitHub linki verme, sadece hangi klasöre konacağını yaz, zip verme (kullanıcı zip verirse bile çıktıyı tek tek dosya ver). Telefondan çalışıyor, ekran görüntüsü atar.
+Tarih: 1 Kasım 2026 (02:30'da güncellendi). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
+Kullanıcı tercihi: kısa, basit, adım adım anlat, kafası karışınca tek tek yönlendir (telefondan Play Console/Firebase kullanıyor, ekran görüntüsü atıyor). Kodu indirilebilir DOSYA olarak ver (tek tek), GitHub linki verme, sadece hangi klasöre konacağını yaz, zip verme (kullanıcı zip verirse bile çıktıyı tek tek dosya ver). Telefondan çalışıyor, ekran görüntüsü atar.
+
+## GÜNCEL DURUM (1 Kasım 2026, gece) – Play'e yükleme aşaması
+Reklamlar çalışıyor (kullanıcı teyit etti). Şimdi Flutter uygulamasını Play'deki MEVCUT uygulamanın üstüne yüklemeye çalışıyoruz.
+
+**Play'deki uygulama:** "Ganyan Sosyal", paket adı `io.github.ganyansosyal.app`, sürüm adı 1.0.23 (eski repoda başka teknolojiyle yapılmış, sürüm KODU bilinmiyor). Telefonda Play'den yüklü.
+
+**Yapılan değişiklikler (kullanıcı GitHub'a yükledi / yüklüyor):**
+- `pubspec.yaml`: `version: 0.3.1+100` (eski kod bilinmediği için büyük sayı), `in_app_update: ^4.2.3` eklendi
+- `.github/workflows/build-aab.yml` ve `build-apk.yml`: `flutter create`'ten sonra `sed` ile `applicationId = "io.github.ganyansosyal.app"` yapılıyor (namespace `com.ganyansosyal.ganyansosyal_native` kalıyor, sorun değil)
+- `lib/credits.dart`: kullanıcıya görünen "[test] LevelPlay..." hata yazısı kaldırıldı, yerine "Şu an uygun reklam yok. Biraz sonra tekrar dene."
+- `lib/update_check.dart` (YENİ): Play In-App Update, uygulama açılınca yeni sürüm varsa tam ekran zorunlu güncelleme (`performImmediateUpdate`). Sadece Play'den yüklenende çalışır. `lib/shell.dart` initState'te `UpdateCheck.run()` çağırıyor.
+- (Firebase `minBuild` ile zorunlu güncelleme ekranı denendi, kullanıcı karmaşık bulunca ÇIKARILDI. `splash.dart` orijinal hâline döndü, `package_info_plus` yok.)
+- `lib/pubspec.yaml` (eski kopya) kullanıcı tarafından silindi.
+- `.github/workflows/export-cert.yml` (YENİ): `KS_BASE64/KS_PASS/KS_ALIAS` secret'larından `upload_cert.pem` ve SHA parmak izlerini üretir.
+
+**Anahtar sorunu (en önemli):**
+- Play'deki YÜKLEME anahtarı SHA-256: `2D:4B:F5:AE:C7:01:30:00:88:01:1C:1D:07:21:E8:D3:58:E9:22:20:67:D8:BE:25:C9:9F:F7:0C:A9:7A:BC:4F` (eski repoda üretilmişti, o keystore artık yok)
+- Bizim repodaki keystore (`KS_BASE64`) SHA-256: `B5:0A:65:21:63:E0:94:B3:A2:67:B4:F3:17:27:E7:C9:0F:EC:59:7F:28:3C:0A:6E:6E:9E:5D:D2:44:30:8E:A9`, SHA-1: `2B:D9:95:46:F4:36:FD:65:5C:4C:C0:E0:5E:9B:94:69:25:1B:64:F0` (Firebase'de `ganyansosyal native` uygulamasında kayıtlı olan bu)
+- İkisi FARKLI, o yüzden Play AAB'yi reddeder. Çözüm: Play Console > Uygulama imzalama > Anahtarı yükleyin > "Sıfırlama talep edin", sebep "Yükleme anahtarımı kaybettim", `upload_cert.pem` (bizim keystore sertifikası) yüklendi. **TALEP GÖNDERİLDİ (1 Kasım 02:31), Google onayı bekleniyor, genelde 1-2 gün, e-posta gelir.** Onaylanmadan AAB yükleme, reddedilir. İsteği iptal etme.
+
+**Firebase durumu:** Projede 2 Android uygulaması var: `io.github.ganyansosyal.app` (SHA-256 `1e:49:02:da...cd:b4` kayıtlı, SHA-1 yok) ve `com.ganyansosyal.ganyansosyal_native` (SHA-1 + SHA-256 bizim keystore). Uygulama Web config kullanıyor (`firebase_options.dart` appId `web:...`), Google ile giriş `serverClientId` ile.
+
+## SIRADAKİ ADIMLAR (sırayla)
+1. **Firebase'de `io.github.ganyansosyal.app` Android uygulamasına parmak izi ekle** (Google ile giriş yeni paket adında çalışsın): Project settings > Your apps > Ganyansosyal android > Add fingerprint: bizim SHA-1 + SHA-256 (yukarıda). Ek olarak Play Console > Uygulama imzalama > "Uygulama imzalama anahtarı" bölümündeki SHA-1'i de ekle (Play'den indirenlerde giriş için şart). Gerekirse Google Cloud Console > Credentials'ta Android OAuth istemcisi (paket `io.github.ganyansosyal.app` + SHA-1) kontrol et.
+2. GitHub'da `pubspec.yaml`, `build-aab.yml`, `build-apk.yml`, `credits.dart`, `shell.dart`, `update_check.dart` yüklü mü kontrol et, sonra **build-aab** çalıştır, `.aab` indir, sakla (kullanıcı AAB'yi aldı/alıyor).
+3. Google sıfırlamayı onaylayınca (e-posta): Play Console > Test ve yayınla > Kapalı test (veya Üretim) > yeni sürüm > `.aab` yükle. Hata verirse mesajı al (imza/sürüm kodu). Sürüm kodu 100 yetmezse `+` sonrasını büyüt.
+4. Play Console > Veri güvenliği: "Reklam kimliği kullanılıyor = Evet". Üretim erişimi başvurusu formu bu aşamada (kapalı test şartı için 1 Kasım'da bitiyor yazıyordu, Play'deki durumu kontrol et).
+5. Yayın sonrası: AdMob'da uygulamayı Play listesine bağla (paket `io.github.ganyansosyal.app`), LevelPlay'de paket adı alanını güncelle ve "Live app" yap. AdMob App ID (`~7852834540`) paket adına bağlı değil, değişmez.
+6. `in_app_update` ilk `+100` ile gidiyor. Güncelleme penceresi sonraki sürümde (`+101` ve üstü) çıkar.
 
 ## Amaç
 Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMob) izler, KREDİ kazanır. Kredi sadece kupon paylaşmak için harcanır. Kredi paraya/hediye kartına çevrilmez. Reklam geliri sahibine (Cengiz) gider.
@@ -81,22 +110,15 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 - Pangle adaptörü 5.27.0, Mintegral 5.23.0 (Gradle artifact adı için docs.unity.com/en-us/grow/levelplay/sdk/android/networks/guides/pangle ve /mintegral).
 
 ## Sürüm numarası (21:50)
-- Şimdi test aşaması: sürüm 0.3.1+5 kalıyor, DEĞİŞTİRME. Test APK'sı için numara artırmaya gerek yok.
-- Test bitip Play'e yüklenecekse `pubspec.yaml` içindeki `version:` satırı artırılır (örn. 0.3.1+6). Play'e her yüklemede `+` sonrası sayı büyümeli.
-- Sonraya kalan: LevelPlay çalışıyorsa sürümü artır, AAB derle, Play'e yükle.
+- Play'e her yüklemede `pubspec.yaml` `version:` içindeki `+` sonrası sayı büyümeli (şu an +100).
 
-## Sıradaki adımlar
+## ESKİ adımlar (çoğu bitti, referans)
 1. Yeni zip/dosyaları GitHub'a yükle, APK derle. Derleme hatası varsa hata metnini (en alttaki kırmızı satırlar) at, düzeltilsin.
 2. APK açılıyorsa test: Özel DNS KAPALI. Video izle butonu -> LevelPlay reklamı gelmeli. Gelmezse (Android logcat/hata) AdMob yedeği devreye girer. Reklam sonuna kadar izlenince +100 kredi.
 3. LevelPlay panelinde Test devices'a telefonu ekle, test reklamıyla dene (kendi reklamına tıklama).
 4. Reklam hâlâ azsa LevelPlay'e AppLovin veya Pangle ekle (Networks > Setup).
 5. LevelPlay/Unity/AdMob ödeme bilgilerini doldur. Unity Türkiye'ye ödeme koşullarını (alt limit, vergi formu) kayıttan önce teyit et. Play Console > Veri güvenliği: \"Reklam kimliği kullanılıyor = Evet\".
 6. Play yayınlanınca LevelPlay'de ve AdMob'da uygulamayı mağaza kaydına bağla (Not live yet -> Live app). Play'e yeni sürüm yükle (versiyonu artır, şu an 0.3.1+4). Kapalı test 1 Kasım'da bitiyor.
-
-## Zip temizlik uyarısı (31 Ekim akşam)
-- `lib/credits (1).dart` ESKİ kopya (CreditBar, LevelPlay yok). Sil. Doğrusu `lib/credits.dart`.
-- `lib/pubspec.yaml` ESKİ kopya (+4, google_mobile_ads ^5.3.0). Sil. Doğrusu ana klasördeki `pubspec.yaml` (+5, ^9.1.0, LevelPlay paketleri).
-- `lib/frames.dart` ile `assets/frames.dart` çift olabilir, kontrol et.
 
 ## Notlar
 - Ödüllü reklamın kapatma/atlama süresini reklamveren belirler, ayar yok. Kod krediyi sadece ödül olayı gelince (sonuna kadar izlenince) verir, erken kapatana kredi yok.
