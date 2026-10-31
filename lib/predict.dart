@@ -1581,11 +1581,17 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [...chips, if (_sel.isNotEmpty) _clearBtn(c)])),
         const SizedBox(height: 6),
-        Row(children: [
+        StreamBuilder<int>(
+          stream: Credits.watch(profileNotifier.value?.uid ?? ''),
+          builder: (context, snap) {
+          final kr = snap.data ?? Credits.welcome;
+          final yok = !_admin && kr < Credits.perKupon;
+          return Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_t.mode == 'legs' ? '$filled/${_lr.length} ayak${filled < _lr.length ? ' · ${_lr.length - filled} eksik · şimdilik' : ''}' : '$k kolon', style: jakarta(10.5, FontWeight.w600, c.mu)),
               Text(money(cost), style: jakarta(18, FontWeight.w800, c.ac)),
+              Text('Kredi: $kr', style: jakarta(11, FontWeight.w800, c.gold)),
             ]),
           ),
           Container(
@@ -1611,17 +1617,19 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
           SizedBox(
             height: 36,
             child: FilledButton(
-              onPressed: _busy || _sel.isEmpty ? null : _share,
+              onPressed: _busy || _sel.isEmpty ? null : (yok ? () => watchVideoForCredit(context) : _share),
               style: FilledButton.styleFrom(
-                backgroundColor: c.ac, 
+                backgroundColor: yok ? c.gold : c.ac, 
                 padding: const EdgeInsets.symmetric(horizontal: 16), 
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: Size.zero,
               ),
-              child: Text('Paylaş', style: jakarta(13, FontWeight.w800, c.on)),
+              child: Text(yok ? '▶ Video izle +${Credits.videoReward}' : (_admin ? 'Paylaş' : 'Paylaş · ${Credits.perKupon} kredi'), style: jakarta(12.5, FontWeight.w800, yok ? Colors.white : c.on)),
             ),
           ),
-        ]),
+        ]);
+          },
+        ),
       ]),
     );
   }
