@@ -48,6 +48,38 @@ Kullanıcı ödüllü reklam (LevelPlay mediation: ironSource + Unity Ads + AdMo
 - 22:20: Unity Ads adaptörü workflow'lara eklendi: `implementation("com.unity3d.ads-mediation:unityads-adapter:5.15.0")` (build.gradle.kts'ye append) + AD_ID izni. Dokümandan doğrulandı. Uyumluluk (adaptör 5.x <-> plugin 9.4.0) test edilecek.
 - AdMob adaptörü (admob-adapter:5.19.0) bilerek EKLENMEDİ: kendi içinde yeni Google Mobile Ads SDK taşır, google_mobile_ads ile çakışabilir. AdMob onaylanınca düşünülecek.
 
+## Site / panel linkleri (kolay bulmak için)
+- LevelPlay paneli: https://platform.ironsrc.com (üstte uygulama: Ganyansosyal). Menü yolları:
+  - Setup > Ad units (reklam birimi kimliği), Instances (hangi ağ açık), Networks, Test devices
+  - Reports > Performance (kazanç, gösterim)
+  - Ad Quality > Manage > Rules (reklam engelleme kuralı), Ad Quality > Review > Creatives (gelen reklamları gör/engelle)
+- Unity (Monetization, placement, Stats API key): https://cloud.unity.com (organization: weptasarimlari)
+- AdMob (hesap onayı, adres/ödeme/PIN, uygulamayı Play'e bağla): https://admob.google.com
+- Unity docs LevelPlay Flutter: https://docs.unity.com/en-us/grow/levelplay/sdk/flutter/plugin-integration
+- Unity docs LevelPlay Android adaptörler: https://docs.unity.com/en-us/grow/levelplay/sdk/android/mediation-networks (Unity Ads: .../android/networks/guides/unity-ads, AdMob: .../android/networks/guides/google-admob)
+- Flutter paketi: https://pub.dev/packages/unity_levelplay_mediation (sürüm 9.4.0)
+- GitHub repo Actions (APK derle / AAB): github.com/ganyansosyal/ganyansosyalprojem > Actions
+- Play Console: https://play.google.com/console (kapalı test, Veri güvenliği)
+
+## Test sonucu 22:45: Unity Ads reklamı GELDİ, LevelPlay çalışıyor
+- Gelen reklamlar oynanabilir oyun reklamları (Whiteout Survival, Kingshot): uzun, kapatma belirsiz, "Mağazayı aç" yazısı kapat sanılıp tıklanabilir (tıklama riski). Çözüm: Ad Quality > Rules/Creatives'ten engelle (kademeli; Games kategorisini tamamen kapatma, fill düşer). AdMob onayı + AppLovin/Pangle eklenince çeşitlilik artar.
+- Yapılacak: butonun altına "Reklam 30 sn sürebilir, sonunda kapat çıkar" bilgi satırı.
+
+## Durum 23:10 (gece güncellemesi)
+- Unity Ads instance DEVRE DIŞI bırakıldı (LevelPlay > Setup > Instances > UnityAds > satırda ⋯ > Deactivate > Save; Game ID alanına 800419201 yazmak gerekti). Sebep: Unity'nin oynanabilir (playable) reklamları uzun, ekrana dokunmadan kapat çıkmıyor, "Download Now/Mağazayı aç" yanlış tıklama riski.
+- Sonuç: şu an hiçbir reklam gelmiyor. LevelPlay 509 "No fill" (ironSource boş), AdMob 3 "Account not approved yet". Kullanıcılar kredi kazanamıyor. Geçici çözüm: Unity'yi geri aç (⋯ > Activate > Save) YA DA yönetici menüsü "Kredi ver" ile elle kredi.
+- Yapılacak (öncelik sırası): 1) AdMob hesap onayı (adres, ödeme, telefon/PIN doğrulaması, admob.google.com). 2) AppLovin ve Pangle hesabı aç, LevelPlay > Setup > Networks > Setup, koda Android Gradle adaptörü ekle (Unity Ads gibi). 3) Onay gelince Unity'yi kapalı tut. 4) Butonun altına "Reklam 30 sn sürebilir, sonunda kapat çıkar" bilgisi (henüz eklenmedi). 5) Test devices ekle (kendi telefonunda gerçek reklama tıklama/tekrar izleme yapma, hesap riski).
+- Ad Quality > Rules sayfası engelleme DEĞİL, bildirim kuralı (trigger: Category/Title/Developer/Package vb.). Creatives sayfası: 5+ gösterim olunca listeler, oradan tek tek engellenebilir.
+- Uygulamada geçici hata yazısı var: reklam gelmezse snackbar'da "[test] LevelPlay: ..." ve AdMob hatası görünür. Yayın öncesi kaldırılacak (credits.dart, levelplay_ads.dart lastError).
+- "Kendi telefonunda reklam izleme": gösterim sayılır ama tekrar tekrar izlemek geçersiz trafik riski; para da çok az. Test devices kullan.
+- Gelir: ödeme için LevelPlay ana sayfasında "payment preferences" ve "company info" doldurulmalı (şirket yok; Individual seçeneği var mı bak, vergi için mali müşavire danış).
+
+## AppLovin (23:15)
+- AppLovin hesabı kullanıcıda zaten açık. Workflow'lara `applovin-adapter:5.10.0` eklendi (SDK'yı içinde taşır, Unity docs'tan doğrulandı).
+- LevelPlay panelinde yapılacak: Setup > Networks > AppLovin > Setup. AppLovin Account > Keys sayfasından: Report Key (network kurulum sayfasına), SDK Key (uygulamanın instance sayfasına). Sonra Instances'ta AppLovin Rewarded instance ekle.
+- AppLovin Admin > Manage Apps > Rewarded: Frequency capping yok, Display Pre-Video Modal = NO, Post-Video Modal = NO, Callback = Client-side only.
+- Pangle adaptörü 5.27.0, Mintegral 5.23.0 (Gradle artifact adı için docs.unity.com/en-us/grow/levelplay/sdk/android/networks/guides/pangle ve /mintegral).
+
 ## Sürüm numarası (21:50)
 - Şimdi test aşaması: sürüm 0.3.1+5 kalıyor, DEĞİŞTİRME. Test APK'sı için numara artırmaya gerek yok.
 - Test bitip Play'e yüklenecekse `pubspec.yaml` içindeki `version:` satırı artırılır (örn. 0.3.1+6). Play'e her yüklemede `+` sonrası sayı büyümeli.
