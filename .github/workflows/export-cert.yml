@@ -1,0 +1,23 @@
+name: Yukleme sertifikasi (pem)
+on: workflow_dispatch
+jobs:
+  c:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          KS_BASE64: ${{ secrets.KS_BASE64 }}
+          KS_PASS: ${{ secrets.KS_PASS }}
+          KS_ALIAS: ${{ secrets.KS_ALIAS }}
+        run: |
+          echo "$KS_BASE64" | base64 -d > release.keystore
+          keytool -exportcert -rfc -alias "$KS_ALIAS" -keystore release.keystore -storepass "$KS_PASS" -file upload_cert.pem
+          echo '### SHA-256 (beklenen: B5:0A:65:21 ... 8E:A9)' >> $GITHUB_STEP_SUMMARY
+          keytool -list -v -keystore release.keystore -alias "$KS_ALIAS" -storepass "$KS_PASS" | grep -E "SHA256" >> $GITHUB_STEP_SUMMARY
+          echo '### upload_cert.pem' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat upload_cert.pem >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upload-cert
+          path: upload_cert.pem
