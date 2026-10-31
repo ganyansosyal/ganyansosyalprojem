@@ -35,9 +35,12 @@ Future<void> main() async {
     } catch (_) {}
   }
   await initFirebase();
-  try {
-    await MobileAds.instance.initialize();
-  } catch (_) {}
+  // Reklam SDK'sı arka planda başlasın: açılışı (siyah ekranı) geciktirmesin
+  () async {
+    try {
+      await MobileAds.instance.initialize();
+    } catch (_) {}
+  }();
   Preload.start(); // akış verisi splash sürerken arka planda gelsin
   runApp(const GanyanApp());
 }
