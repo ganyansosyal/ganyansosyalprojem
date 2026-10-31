@@ -13,7 +13,7 @@ import 'theme.dart';
 class Credits {
   static const int welcome = 3; // ilk kredi hediyesi
   static const int perKupon = 1; // bir kupon paylaşmanın bedeli
-  static const int videoReward = 50; // her video izlemeye verilen kredi
+  static const int videoReward = 100; // her video izlemeye verilen kredi
   static final _db = FirebaseFirestore.instance;
 
   /// Canlı kredi sayısı (profilde / ana sayfada göstermek için).

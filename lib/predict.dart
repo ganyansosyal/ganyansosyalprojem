@@ -478,7 +478,7 @@ class _PredictPageState extends State<PredictPage> {
                 child: Row(children: [
                   Icon(Icons.info_outline_rounded, color: col.red, size: 18),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(_admin ? 'Paylaşılan kupon silinemez.' : 'Paylaşılan kupon silinemez · 1 kredi harcanır.', style: jakarta(12.5, FontWeight.w700, col.red))),
+                  Expanded(child: Text(_admin ? 'Paylaşılan kupon silinemez.' : 'Paylaşılan kupon silinemez · ${couponCost(c).ceil()} kredi harcanır.', style: jakarta(12.5, FontWeight.w700, col.red))),
                 ]),
               ),
               const SizedBox(height: 20),
@@ -513,8 +513,9 @@ class _PredictPageState extends State<PredictPage> {
       },
     );
     if (ok != true) return;
-    if (!_admin && !await Credits.spend(me.uid)) {
-      _toast('Krediniz bitti. Video izleyip kredi kazanın.');
+    final need = couponCost(c).ceil();
+    if (!_admin && !await Credits.spend(me.uid, n: need)) {
+      _toast('Krediniz yetmiyor ($need kredi gerekli). Video izleyip kredi kazanın.');
       return;
     }
     final db = FirebaseFirestore.instance;
@@ -1585,7 +1586,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
           stream: Credits.watch(profileNotifier.value?.uid ?? ''),
           builder: (context, snap) {
           final kr = snap.data ?? Credits.welcome;
-          final yok = !_admin && kr < Credits.perKupon;
+          final yok = !_admin && kr < cost.ceil();
           return Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1624,7 +1625,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 minimumSize: Size.zero,
               ),
-              child: Text(yok ? '▶ Video izle +${Credits.videoReward}' : (_admin ? 'Paylaş' : 'Paylaş · ${Credits.perKupon} kredi'), style: jakarta(12.5, FontWeight.w800, yok ? Colors.white : c.on)),
+              child: Text(yok ? '▶ Video izle +${Credits.videoReward}' : (_admin ? 'Paylaş' : 'Paylaş · ${cost.ceil()} kredi'), style: jakarta(12.5, FontWeight.w800, yok ? Colors.white : c.on)),
             ),
           ),
         ]);
