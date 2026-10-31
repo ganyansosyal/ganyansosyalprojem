@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
+import 'levelplay_ads.dart';
 import 'splash.dart';
 
 const _barGreen = Color(0xFF0E7C5B);
@@ -39,6 +40,9 @@ Future<void> main() async {
   () async {
     try {
       await MobileAds.instance.initialize();
+    } catch (_) {}
+    try {
+      await LevelPlayAds.instance.init();
     } catch (_) {}
   }();
   Preload.start(); // akış verisi splash sürerken arka planda gelsin

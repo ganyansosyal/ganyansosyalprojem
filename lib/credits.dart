@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'auth_service.dart';
+import 'levelplay_ads.dart';
 import 'theme.dart';
 
 /* =====================================================================
@@ -66,8 +67,15 @@ const String kRewardedUnitId = 'ca-app-pub-1340335815297540/1095854500';
 
 bool _adBusy = false;
 
-/// Ödüllü reklamı yükler ve gösterir. Kullanıcı sonuna kadar izlerse true döner.
-Future<bool> _playVideo() {
+/// Önce LevelPlay (ironSource + Unity Ads + AdMob mediation), reklam yoksa doğrudan AdMob.
+Future<bool> _playVideo() async {
+  final r = await LevelPlayAds.instance.playRewarded();
+  if (r != null) return r;
+  return _playAdMobDirect();
+}
+
+/// Doğrudan AdMob ödüllü reklamı (yedek). Kullanıcı sonuna kadar izlerse true döner.
+Future<bool> _playAdMobDirect() {
   final done = Completer<bool>();
   var earned = false;
   RewardedAd.load(
