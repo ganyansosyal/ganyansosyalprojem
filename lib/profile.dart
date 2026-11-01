@@ -390,7 +390,7 @@ Widget build(BuildContext context) {
         padding: EdgeInsets.zero,
         children: [
           SizedBox(
-            height: 186, // avatar/@kullanıcı adı ile altındaki butonlar arasında nefes payı
+            height: 190, // avatar/@kullanıcı adı ile altındaki butonlar arasında nefes payı
             child: Stack(children: [
           Positioned(top: 0, left: 0, right: 0, child: Container(
             height: 115,
@@ -466,18 +466,27 @@ Widget build(BuildContext context) {
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: canManage ? openMenu : null,
-                            child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(20, FontWeight.w800, c.tx)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(20, FontWeight.w800, c.tx)),
+                            ),
                           ),
                           const SizedBox(height: 3),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 5,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                             decoration: BoxDecoration(color: c.ac.withAlpha(20), borderRadius: BorderRadius.circular(9)),
                             child: Text('@${p.handle}', style: jakarta(12.5, FontWeight.w700, c.ac)),
                           ),
                           if (isAdminNotifier.value)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 5),
-                              child: StreamBuilder<int>(
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: canManage ? openMenu : null,
+                                child: StreamBuilder<int>(
                                 stream: Credits.watch(widget.uid),
                                 builder: (context, snap) => Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
@@ -489,7 +498,9 @@ Widget build(BuildContext context) {
                                   ]),
                                 ),
                               ),
-                            ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
