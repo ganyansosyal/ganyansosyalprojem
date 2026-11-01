@@ -29,6 +29,16 @@ class _ShellState extends State<Shell> {
   int _tab = 0;
   final Set<int> _built = {0};
 
+  // Sekme sayfaları bir kez oluşturulur. Aynı widget örneği tekrar verilince Flutter
+  // o sayfayı yeniden çizmez: sekme değişince akış/liderler/sonuçlar boşuna kasmaz.
+  final Map<int, Widget> _cache = {};
+
+  Widget _cached(int i) {
+    if (i == 2) return _page(2); // Tahmin Yap, 'active' bilgisini alıyor
+    if (i == 4 && (profileNotifier.value?.uid ?? '').isEmpty) return _page(4);
+    return _cache.putIfAbsent(i, () => _page(i));
+  }
+
   Widget _page(int i) {
     switch (i) {
       case 0:
@@ -119,7 +129,7 @@ class _ShellState extends State<Shell> {
                     child: Stack(children: [
                       IndexedStack(
                         index: _tab,
-                        children: [for (var i = 0; i < 5; i++) _built.contains(i) ? _page(i) : const SizedBox.shrink()],
+                        children: [for (var i = 0; i < 5; i++) _built.contains(i) ? _cached(i) : const SizedBox.shrink()],
                       ),
                     ]),
                   ),
@@ -317,7 +327,7 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 70),
               width: 46,
               height: 30,
               decoration: BoxDecoration(
@@ -326,7 +336,7 @@ class _NavItem extends StatelessWidget {
                     ? const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)])
                     : null,
                 boxShadow: on
-                    ? const [BoxShadow(color: Color(0x6B0E9F73), blurRadius: 12, offset: Offset(0, 4))]
+                    ? const [BoxShadow(color: Color(0x520E9F73), blurRadius: 8, offset: Offset(0, 3))]
                     : null,
               ),
               child: Icon(icon, size: 22, color: on ? Colors.white : fg),

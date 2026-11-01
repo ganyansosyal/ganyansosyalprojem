@@ -1,42 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 
 import 'theme.dart';
 
-// Yayın değişirse yalnızca bu kod güncellenir (youtube.com/live/<KOD>)
-const _liveId = 'I1FgwiDqpS8';
+// TJK TV (Tay TV) resmi yayın adresleri. Yayın adresi değişirse yalnızca burası güncellenir.
+const _liveUrls = [
+  'https://tjktv-live.tjk.org/taytv/taytv.m3u8',
+  'https://tjktv-live.tjk.org/taytv/taytv_480p.m3u8',
+];
 
-const _bg = Color(0xFF0B0F17);
-const _card = Color(0xFF161B26);
 const _ac = Color(0xFF12B886);
-const _red = Color(0xFFE0305A);
+const _amber = Color(0xFFFFB627);
 
-/// Canlı yayını uygulama içinde açar (web'deki canlı yayın penceresinin karşılığı).
+/// Canlı yayını yatay tam ekran açar. Rota anında ve siyah açılır: geçiş animasyonu yok,
+/// ekran dönerken beyaz parlama olmaz.
 Future<void> showLive(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
-    backgroundColor: _bg,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-    builder: (_) => const _LiveSheet(),
-  );
+  return Navigator.of(context, rootNavigator: true).push<void>(PageRouteBuilder<void>(
+    opaque: true,
+    barrierColor: Colors.black,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    pageBuilder: (_, __, ___) => const _LivePage(),
+  ));
 }
-
-// Web'deki gibi: YouTube oynatıcısı alttan ve üstten 80px uzatılıp kırpılır; böylece YouTube'un
-// başlık yazısı, "YouTube'da izle", logo ve alt kontrol çubuğu görünmez. Video 16:9 kutuya tam oturur
-// (tam ekranda da çalışır: genişlik = min(ekran genişliği, yükseklik*16/9)).
-const _cropJs = r'''(function(){try{
-var d=document;
-if(d.getElementById('lvcrop'))return;
-var s=d.createElement('style');s.id='lvcrop';
-s.textContent='html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}'
-+'#player{position:absolute!important;left:50%!important;top:-80px!important;width:min(100vw,calc(100vh*16/9))!important;height:calc(100vh + 160px)!important;max-width:none!important;transform:translateX(-50%)!important;border:0!important;pointer-events:none!important}';
-(d.head||d.documentElement).appendChild(s);
-}catch(e){}})();''';
 
 class _Lv {
   final bool playing, wait;
@@ -49,246 +38,195 @@ String _fmt(double t) {
   return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 }
 
-class _LiveSheet extends StatefulWidget {
-  const _LiveSheet();
+class _LivePage extends StatefulWidget {
+  const _LivePage();
   @override
-  State<_LiveSheet> createState() => _LiveSheetState();
+  State<_LivePage> createState() => _LivePageState();
 }
 
-class _LiveSheetState extends State<_LiveSheet> {
-  late final YoutubePlayerController _c = YoutubePlayerController.fromVideoId(
-    videoId: _liveId,
-    autoPlay: true,
-    params: const YoutubePlayerParams(
-      showControls: false,
-      showFullscreenButton: false,
-      enableKeyboard: false,
-      playsInline: true,
-      strictRelatedVideos: true,
-      showVideoAnnotations: false,
-      pointerEvents: PointerEvents.none,
-    ),
-  );
+class _LivePageState extends State<_LivePage> with WidgetsBindingObserver {
+  VideoPlayerController? _v;
   final _st = ValueNotifier<_Lv>(const _Lv());
   final _muted = ValueNotifier<bool>(false);
   Timer? _t;
-  bool _busy = false;
+  bool _failed = false;
+  bool _closing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _open();
     _t = Timer.periodic(const Duration(milliseconds: 500), (_) => _tick());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _t?.cancel();
-    _c.close();
+    _v?.dispose();
     _st.dispose();
     _muted.dispose();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
-  int _n = 0;
-
-  void _crop() {
-    try {
-      _c.webViewController.runJavaScript(_cropJs);
-    } catch (_) {}
+  // Uygulama arka plana gidince yayın sesi devam etmesin
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.paused) _v?.pause();
   }
 
-  Future<void> _tick() async {
-    // Sayfa yüklenene kadar ilk saniyelerde sık, sonra seyrek tekrar uygula (kendi kendini tekrarlamaz)
-    if (_n < 40 || _n % 6 == 0) _crop();
-    _n++;
-    if (_busy) return;
-    _busy = true;
-    try {
-      final ps = await _c.playerState;
-      final d = await _c.duration;
-      final cur = await _c.currentTime;
-      if (!mounted) return;
-      _st.value = _Lv(
-        playing: ps == PlayerState.playing || ps == PlayerState.buffering,
-        wait: ps == PlayerState.buffering || ps == PlayerState.unStarted,
-        lag: d > 1 ? (d - cur).clamp(0, 1e9).toDouble() : 0,
+  // Önce ana yayını, olmazsa 480p yayını dener.
+  Future<void> _open() async {
+    if (_failed) setState(() => _failed = false);
+    final old = _v;
+    _v = null;
+    await old?.dispose();
+    for (final url in _liveUrls) {
+      final c = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        formatHint: VideoFormat.hls,
+        httpHeaders: const {'Referer': 'https://www.tjk.org/', 'Origin': 'https://www.tjk.org'},
       );
-    } catch (_) {
-    } finally {
-      _busy = false;
+      try {
+        await c.initialize().timeout(const Duration(seconds: 15));
+        if (!mounted) {
+          await c.dispose();
+          return;
+        }
+        await c.play();
+        setState(() => _v = c);
+        return;
+      } catch (_) {
+        await c.dispose();
+      }
     }
+    if (mounted) setState(() => _failed = true);
+  }
+
+  void _tick() {
+    final c = _v;
+    if (c == null || !mounted) return;
+    final v = c.value;
+    final dur = v.duration.inMilliseconds / 1000.0;
+    final pos = v.position.inMilliseconds / 1000.0;
+    final n = _Lv(
+      playing: v.isPlaying || v.isBuffering,
+      wait: !v.isInitialized || v.isBuffering,
+      lag: dur > 1 ? (dur - pos).clamp(0, 1e9).toDouble() : 0,
+    );
+    final o = _st.value;
+    // Değişmediyse bildirim gönderme: boşuna yeniden çizim olmasın
+    if (o.playing != n.playing || o.wait != n.wait || (o.lag - n.lag).abs() >= 1) _st.value = n;
   }
 
   Future<void> _toggle() async {
-    if (_st.value.playing) {
-      await _c.pauseVideo();
+    final c = _v;
+    if (c == null) return;
+    if (c.value.isPlaying) {
+      await c.pause();
     } else {
-      await _c.playVideo();
+      await c.play();
     }
     _tick();
   }
 
   Future<void> _seek(double dt) async {
+    final c = _v;
+    if (c == null) return;
     try {
-      final d = await _c.duration;
-      final cur = await _c.currentTime;
-      await _c.seekTo(seconds: (cur + dt).clamp(0, d > 1 ? d - 1 : 0).toDouble(), allowSeekAhead: true);
+      final d = c.value.duration.inMilliseconds / 1000.0;
+      final cur = c.value.position.inMilliseconds / 1000.0;
+      final to = (cur + dt).clamp(0, d > 1 ? d - 1 : cur + dt).toDouble();
+      await c.seekTo(Duration(milliseconds: (to * 1000).round()));
       _tick();
     } catch (_) {}
   }
 
   Future<void> _edge() async {
+    final c = _v;
+    if (c == null) return;
     try {
-      final d = await _c.duration;
-      await _c.seekTo(seconds: d, allowSeekAhead: true);
-      await _c.playVideo();
+      await c.seekTo(c.value.duration);
+      await c.play();
       _tick();
     } catch (_) {}
   }
 
   Future<void> _mute() async {
-    if (_muted.value) {
-      await _c.unMute();
-    } else {
-      await _c.mute();
-    }
+    final c = _v;
+    if (c == null) return;
+    await c.setVolume(_muted.value ? 1.0 : 0.0);
     _muted.value = !_muted.value;
   }
 
-  void _full() => _c.enterFullScreen();
+  void _close() {
+    if (_closing) return;
+    _closing = true;
+    Navigator.of(context).pop();
+  }
 
-  Widget _btn(Widget child, VoidCallback f, {EdgeInsets pad = const EdgeInsets.symmetric(horizontal: 14, vertical: 10)}) => GestureDetector(
+  Widget _pill(String text, VoidCallback f) => GestureDetector(
         onTap: f,
         child: Container(
-          padding: pad,
-          decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2A3345))),
-          child: child,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
+          child: Text(text, style: jakarta(13, FontWeight.w800, Colors.white)),
         ),
       );
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
-            child: Row(children: [
-              ValueListenableBuilder<_Lv>(
-                valueListenable: _st,
-                builder: (_, v, __) {
-                  final lagging = v.lag > 20;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(color: lagging ? const Color(0xFFD97706) : _red, borderRadius: BorderRadius.circular(9)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
-                      const SizedBox(width: 6),
-                      Text(lagging ? 'GERİDE ${_fmt(v.lag)}' : 'CANLI', style: jakarta(12.5, FontWeight.w800, Colors.white)),
+    final c = _v;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: false,
+      body: Stack(fit: StackFit.expand, children: [
+        if (c != null)
+          Center(
+            child: AspectRatio(
+              aspectRatio: c.value.aspectRatio > 0 ? c.value.aspectRatio : 16 / 9,
+              child: RepaintBoundary(child: VideoPlayer(c)),
+            ),
+          ),
+        if (c != null)
+          _Overlay(st: _st, muted: _muted, onToggle: _toggle, onSeek: _seek, onMute: _mute, onEdge: _edge, onClose: _close)
+        else
+          Center(
+            child: _failed
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('Yayına şu an ulaşılamıyor', style: jakarta(14, FontWeight.w700, Colors.white70)),
+                    const SizedBox(height: 12),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      _pill('Tekrar dene', _open),
+                      const SizedBox(width: 10),
+                      _pill('Kapat', _close),
                     ]),
-                  );
-                },
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Canlı yayın', style: jakarta(15, FontWeight.w800, Colors.white)),
-                  Text('TJK yarış yayını', style: jakarta(11.5, FontWeight.w600, Colors.white54)),
-                ]),
-              ),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(color: Color(0xFF232A38), shape: BoxShape.circle),
-                  child: const Icon(Icons.close, color: Colors.white70, size: 17),
-                ),
-              ),
-            ]),
+                  ])
+                : const CircularProgressIndicator(color: _ac),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * (MediaQuery.orientationOf(context) == Orientation.landscape ? 0.5 : 0.27)),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: YoutubePlayer(
-            controller: _c,
-            aspectRatio: 16 / 9,
-            autoFullScreen: false,
-            enableFullScreenOnVerticalDrag: false,
-            backgroundColor: Colors.black,
-            controlsBuilder: (context, fs) => _Overlay(
-              st: _st,
-              muted: _muted,
-              fs: fs,
-              onToggle: _toggle,
-              onSeek: _seek,
-              onMute: _mute,
-              onFull: _full,
-              onClose: () => _c.exitFullScreen(),
-            ),
+        if (c == null && !_failed)
+          Positioned(
+            left: 16,
+            top: 12,
+            child: SafeArea(child: _pill('✕ Kapat', _close)),
           ),
-                ),
-              ),
-            ),
-          ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-            child: Row(children: [
-              _btn(
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.replay, color: Colors.white, size: 18),
-                  const SizedBox(width: 6),
-                  Text('30 sn', style: jakarta(13, FontWeight.w800, Colors.white)),
-                ]),
-                () => _seek(-30),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ValueListenableBuilder<_Lv>(
-                  valueListenable: _st,
-                  builder: (_, v, __) {
-                    final behind = v.lag > 5;
-                    return GestureDetector(
-                      onTap: _edge,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12), border: Border.all(color: behind ? _red : const Color(0xFF2A3345))),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Container(width: 13, height: 13, decoration: BoxDecoration(color: behind ? _red : _ac, shape: BoxShape.circle, border: Border.all(color: Colors.white24, width: 2.5))),
-                          const SizedBox(width: 8),
-                          Text(behind ? 'Canlıya dön' : 'Canlıdasın', style: jakarta(14, FontWeight.w700, Colors.white)),
-                        ]),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              _btn(const Icon(Icons.fullscreen, color: Colors.white, size: 22), _full, pad: const EdgeInsets.all(10)),
-            ]),
-          ),
-        ]),
-      ),
+      ]),
     );
   }
 }
 
-/// Videonun üstündeki kontroller: dokununca görünür / gizlenir (YouTube'un kendi kontrolleri kapalı)
+/// Kontroller: dokununca görünür, 3 sn sonra gizlenir
 class _Overlay extends StatefulWidget {
   final ValueNotifier<_Lv> st;
   final ValueNotifier<bool> muted;
-  final bool fs;
-  final VoidCallback onToggle, onMute, onFull, onClose;
+  final VoidCallback onToggle, onMute, onEdge, onClose;
   final void Function(double) onSeek;
-  const _Overlay({required this.st, required this.muted, required this.fs, required this.onToggle, required this.onSeek, required this.onMute, required this.onFull, required this.onClose});
+  const _Overlay({required this.st, required this.muted, required this.onToggle, required this.onSeek, required this.onMute, required this.onEdge, required this.onClose});
   @override
   State<_Overlay> createState() => _OverlayState();
 }
@@ -327,7 +265,7 @@ class _OverlayState extends State<_Overlay> {
           _arm();
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
           child: child,
         ),
@@ -339,55 +277,56 @@ class _OverlayState extends State<_Overlay> {
       valueListenable: widget.st,
       builder: (_, v, __) {
         final show = _show || !v.playing;
+        final behind = v.lag > 5;
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _tap,
-          child: Stack(children: [
-            // Duraklatılınca YouTube'un kendi durdurma ekranı (önerilen videolar) görünmesin
-            if (!v.playing) const Positioned.fill(child: ColoredBox(color: Colors.black)),
-            if (v.wait) const Center(child: CircularProgressIndicator(color: _ac)),
-            if (show && !v.wait)
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    widget.onToggle();
-                    _arm();
-                  },
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                    child: Icon(v.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 32),
+          child: SafeArea(
+            child: Stack(children: [
+              if (v.wait) const Center(child: CircularProgressIndicator(color: _ac)),
+              if (show && !v.wait)
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      widget.onToggle();
+                      _arm();
+                    },
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                      child: Icon(v.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                    ),
                   ),
                 ),
-              ),
-            if (show && widget.fs)
-              Positioned(
-                left: 12,
-                top: 12,
-                child: _small(Text('✕ Kapat', style: jakarta(13, FontWeight.w800, Colors.white)), widget.onClose),
-              ),
-            if (show)
-              Positioned(
-                left: 10,
-                right: 10,
-                bottom: 8,
-                child: Row(children: [
-                  _small(Text('↺ 10', style: jakarta(13, FontWeight.w800, Colors.white)), () => widget.onSeek(-10)),
-                  const SizedBox(width: 6),
-                  _small(Text('10 ↻', style: jakarta(13, FontWeight.w800, Colors.white)), () => widget.onSeek(10)),
-                  const SizedBox(width: 8),
-                  Text(v.lag > 5 ? '-${_fmt(v.lag)}' : 'CANLI', style: jakarta(12.5, FontWeight.w800, v.lag > 5 ? const Color(0xFFFFB627) : Colors.white)),
-                  const Spacer(),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: widget.muted,
-                    builder: (_, m, __) => _small(Icon(m ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20), widget.onMute),
-                  ),
-                  const SizedBox(width: 6),
-                  _small(Icon(widget.fs ? Icons.fullscreen_exit : Icons.fullscreen, color: Colors.white, size: 20), widget.fs ? widget.onClose : widget.onFull),
-                ]),
-              ),
-          ]),
+              if (show)
+                Positioned(
+                  left: 12,
+                  top: 10,
+                  child: _small(Text('✕ Kapat', style: jakarta(13, FontWeight.w800, Colors.white)), widget.onClose),
+                ),
+              if (show)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 10,
+                  child: Row(children: [
+                    _small(Text('↺ 10', style: jakarta(13, FontWeight.w800, Colors.white)), () => widget.onSeek(-10)),
+                    const SizedBox(width: 8),
+                    _small(Text('10 ↻', style: jakarta(13, FontWeight.w800, Colors.white)), () => widget.onSeek(10)),
+                    const SizedBox(width: 12),
+                    behind
+                        ? _small(Text('● Canlıya dön  -${_fmt(v.lag)}', style: jakarta(13, FontWeight.w800, _amber)), widget.onEdge)
+                        : Text('● CANLI', style: jakarta(13, FontWeight.w800, Colors.white)),
+                    const Spacer(),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.muted,
+                      builder: (_, m, __) => _small(Icon(m ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 20), widget.onMute),
+                    ),
+                  ]),
+                ),
+            ]),
+          ),
         );
       },
     );
