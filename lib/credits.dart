@@ -17,7 +17,7 @@ import 'theme.dart';
 class Credits {
   static const int welcome = 3; // ilk kredi hediyesi
   static const int perKupon = 1; // bir kupon paylaşmanın bedeli
-  static const int videoReward = 200; // her video izlemeye verilen kredi
+  static const int videoReward = 300; // her video izlemeye verilen kredi
   static const int dailyBonus = 100; // günlük açılış bonusu
   static final _db = FirebaseFirestore.instance;
 
@@ -38,6 +38,16 @@ class Credits {
       if (cur < n) return false;
       t.set(ref, {'credits': cur - n}, SetOptions(merge: true));
       return true;
+    });
+  }
+
+  /// Kredi düşer; yetmezse eksik kalanı sistem tamamlar (kredi 0'a iner).
+  /// Sadece kullanıcı o oturumda video izlediyse çağrılır.
+  static Future<void> spendWithTopUp(String uid, {required int n}) {
+    final ref = _db.collection('users').doc(uid);
+    return _db.runTransaction<void>((t) async {
+      final cur = _read((await t.get(ref)).data());
+      t.set(ref, {'credits': cur >= n ? cur - n : 0}, SetOptions(merge: true));
     });
   }
 
@@ -113,9 +123,10 @@ Future<bool> _playAdMobDirect() {
   return done.future;
 }
 
-Future<void> watchVideoForCredit(BuildContext context, {int reward = Credits.videoReward}) async {
+/// true = video izlendi ve kredi yazıldı.
+Future<bool> watchVideoForCredit(BuildContext context, {int reward = Credits.videoReward}) async {
   final me = profileNotifier.value;
-  if (me == null || _adBusy) return;
+  if (me == null || _adBusy) return false;
   _adBusy = true;
   final sm = ScaffoldMessenger.of(context);
   sm
@@ -128,6 +139,7 @@ Future<void> watchVideoForCredit(BuildContext context, {int reward = Credits.vid
       sm
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text('+$reward kredi kazandın!'), duration: const Duration(seconds: 2)));
+      return true;
     } else {
       sm
         ..hideCurrentSnackBar()
@@ -141,6 +153,7 @@ Future<void> watchVideoForCredit(BuildContext context, {int reward = Credits.vid
   } finally {
     _adBusy = false;
   }
+  return false;
 }
 
 /// Ana sayfadaki küçük kredi hapı (Öne Çıkan Tahminciler başlığının sağında).
