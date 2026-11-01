@@ -1224,8 +1224,8 @@ class _TakiRowState extends State<_TakiRow> {
         if (!mounted || tk == '?') return;
         setState(() => _prev = tk.isEmpty ? <String>{} : tk.split(',').toSet());
       }, onError: (Object _) {});
-    } else if (_tries++ < 6) {
-      Future.delayed(const Duration(seconds: 4), () {
+    } else if (_tries++ < 3) {
+      Future.delayed(const Duration(seconds: 6), () {
         if (mounted) _load();
       });
     }

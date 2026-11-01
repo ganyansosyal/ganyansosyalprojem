@@ -1416,3 +1416,141 @@ String _yarisNoIso(List<String> a) {
   }
   return '';
 }
+
+
+/* ---------------- Beraber koşular: atın tüm geçmiş koşu satırları ---------------- */
+
+class AtPast {
+  final String key, t, sh, pist, msf, s, j, kg, d, hp, g, tk, v;
+  const AtPast({
+    required this.key,
+    this.t = '',
+    this.sh = '',
+    this.pist = '',
+    this.msf = '',
+    this.s = '',
+    this.j = '',
+    this.kg = '',
+    this.d = '',
+    this.hp = '',
+    this.g = '',
+    this.tk = '?',
+    this.v = '',
+  });
+}
+
+final Map<String, List<AtPast>> _pastMem = {};
+
+final Map<String, Future<List<AtPast>>> _pastBusy = {};
+
+/// Bu atın tüm geçmişi bellekte hazır mı?
+bool atPastHazir(String atId) => _pastMem.containsKey(atId);
+
+Future<List<AtPast>> getAtPast(String atId) {
+  final hit = _pastMem[atId];
+  if (hit != null) return Future.value(hit);
+  return _pastBusy[atId] ??= _getAtPast(atId).whenComplete(() => _pastBusy.remove(atId));
+}
+
+Future<List<AtPast>> _getAtPast(String atId) async {
+  final url = 'https://www.tjk.org/TR/yarissever/Query/ConnectedPage/AtKosuBilgileri?1=1&QueryParameter_AtId=${Uri.encodeComponent(atId)}';
+  final html = await _fetch(url, sec: 25, retry: 1, ttl: 600, disk: 43200, fresh: false);
+  final l = await compute(_atPastIso, <String>[html, atId]);
+  final r = [
+    for (final m in l)
+      AtPast(
+        key: m['key'] ?? '', t: m['t'] ?? '', sh: m['sh'] ?? '', pist: m['pist'] ?? '', msf: m['msf'] ?? '', s: m['s'] ?? '',
+        j: m['j'] ?? '', kg: m['kg'] ?? '', d: m['d'] ?? '', hp: m['hp'] ?? '', g: m['g'] ?? '', tk: m['tk'] ?? '?', v: m['v'] ?? '',
+      )
+  ];
+  _pastMem[atId] = r;
+  return r;
+}
+
+List<Map<String, String>> _atPastIso(List<String> a) {
+  final doc = hp.parse(a[0]);
+  final atId = a[1];
+  final out = <Map<String, String>>[];
+  for (final tb in doc.querySelectorAll('table')) {
+    if (tb.querySelector('table') != null) continue;
+    final rows = tb.querySelectorAll('tr');
+    final hi = rows.indexWhere((tr) {
+      final t = _clean(tr.text);
+      return RegExp('Tarih', caseSensitive: false).hasMatch(t) && RegExp('Derece', caseSensitive: false).hasMatch(t);
+    });
+    if (hi < 0) continue;
+    final heads = rows[hi].querySelectorAll('th,td').map((c) => _clean(c.text).toLowerCase()).toList();
+    int ix(RegExp r, [int skip = -1]) => heads.indexWhere((h) => r.hasMatch(h));
+    final iT = ix(RegExp(r'^tarih'));
+    final iS = heads.indexWhere((h) => h == 's' || RegExp(r'^s[ıi]ra').hasMatch(h));
+    final iD = ix(RegExp(r'^derece'));
+    final iH = ix(RegExp(r'hip|şehir|sehir'));
+    final iM = ix(RegExp(r'msf|mesafe'));
+    var iP = -1;
+    for (var i = 0; i < heads.length; i++) {
+      if (i != iM && RegExp(r'pist|zemin').hasMatch(heads[i])) {
+        iP = i;
+        break;
+      }
+    }
+    final iJk = ix(RegExp(r'jokey'));
+    final iG = ix(RegExp(r'^gny|ganyan'));
+    final iK = ix(RegExp(r'^k\.?\s*no'));
+    final iKg = ix(RegExp(r'siklet|^kg'));
+    final iHp = ix(RegExp(r'^hp'));
+    final iTk = ix(RegExp(r'tak[ıi]|ekipman'));
+    if (iT < 0) continue;
+    for (var i = hi + 1; i < rows.length && out.length < 40; i++) {
+      final td = rows[i].querySelectorAll('td');
+      if (td.length <= iT) continue;
+      String g(int idx) => idx >= 0 && idx < td.length ? _clean(td[idx].text) : '';
+      final tarih = g(iT);
+      if (!RegExp(r'^\d{1,2}[./]\d{1,2}[./]\d{4}$').hasMatch(tarih)) continue;
+      var pist = g(iP);
+      if (pist.isEmpty && iM >= 0 && iM < td.length) {
+        pist = td[iM].querySelector('[title]')?.attributes['title'] ?? td[iM].querySelector('img[alt]')?.attributes['alt'] ?? '';
+      }
+      pist = _pistAd(pist);
+      final msf = g(iM).replaceAll(RegExp(r'[^\d]'), '');
+      final rh = rows[i].outerHtml.replaceAll('&amp;', '&');
+      final mp = RegExp(r'(?:https?:)?//video-cdn\.tjk\.org/videoftp/[^"\x27\s<>\\]+?\.mp4', caseSensitive: false).firstMatch(rh);
+      final hv = RegExp(r'href\s*=\s*["\x27]([^"\x27]*YarisVideo[^"\x27]*)["\x27]', caseSensitive: false).firstMatch(rh);
+      final kk = RegExp(r'KosuKodu\W{0,8}?(-?\d{3,})', caseSensitive: false).firstMatch(rh);
+      var v = '';
+      if (mp != null) {
+        final u = mp.group(0)!;
+        v = u.startsWith('//') ? 'https:$u' : u;
+      } else if (hv != null) {
+        final u = hv.group(1)!;
+        v = u.startsWith('http') ? u : 'https://www.tjk.org${u.startsWith('/') ? '' : '/'}$u';
+      } else if (kk != null) {
+        final tm = RegExp(r'^(\d{1,2})[./](\d{1,2})[./](\d{4})$').firstMatch(tarih);
+        if (tm != null) {
+          final dt = DateTime(int.parse(tm.group(3)!), int.parse(tm.group(2)!), int.parse(tm.group(1)!));
+          if (DateTime.now().difference(dt).inDays <= 90) {
+            v = 'https://www.tjk.org/TR/YarisSever/Info/YarisVideoAt/At?AtKodu=${Uri.encodeComponent(atId)}&KosuKodu=${kk.group(1)}';
+          }
+        }
+      }
+      final kn = '${int.tryParse(g(iK)) ?? ''}';
+      final key = kk != null ? 'k${kk.group(1)}' : '$tarih|${g(iH)}|$kn|$msf';
+      out.add({
+        'key': key,
+        't': tarih,
+        'sh': g(iH),
+        'pist': pist,
+        'msf': msf,
+        's': g(iS).replaceAll(RegExp(r'[^\d]'), ''),
+        'j': g(iJk),
+        'kg': g(iKg),
+        'd': g(iD),
+        'hp': g(iHp),
+        'g': g(iG).replaceAll(RegExp(r'[^\d.,]'), ''),
+        'tk': iTk >= 0 && iTk < td.length ? _takiCikar(td[iTk], '', null).map((e) => e.k).join(',') : '?',
+        'v': v,
+      });
+    }
+    break;
+  }
+  return out;
+}
