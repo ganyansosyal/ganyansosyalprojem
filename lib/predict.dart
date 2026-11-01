@@ -1192,24 +1192,115 @@ Widget _son6Row(AppColors c, Horse h) {
         ),
     ],
     const Spacer(),
-    for (final t in h.taki.take(4))
-      Builder(
-        builder: (ctx) => GestureDetector(
-          // kartın "kupona ekle" dokunuşuna düşmesin: takıya basınca açıklama açılır
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _takiInfo(ctx, c, t.k, t.a),
-          child: Container(
-            margin: const EdgeInsets.only(left: 4, bottom: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-            decoration: BoxDecoration(color: c.ac.withAlpha(22), borderRadius: BorderRadius.circular(12), border: Border.all(color: c.ac.withAlpha(80))),
-            child: Text(t.k, style: jakarta(11.5, FontWeight.w800, c.ac)),
-          ),
-        ),
-      ),
+    _TakiRow(c, h),
   ]);
 }
 
-void _takiInfo(BuildContext context, AppColors c, String kod, String aciklama) {
+/// Takı çipleri + son koşuya göre değişiklik işaretleri
+class _TakiRow extends StatefulWidget {
+  final AppColors c;
+  final Horse h;
+  const _TakiRow(this.c, this.h);
+  @override
+  State<_TakiRow> createState() => _TakiRowState();
+}
+
+class _TakiRowState extends State<_TakiRow> {
+  Set<String>? _prev; // null = son koşunun takısı bilinmiyor
+  int _tries = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final id = widget.h.atId;
+    if (id.isEmpty) return;
+    if (atHistHazir(id)) {
+      getAtHist(id).then((r) {
+        final tk = r.yaris?.tk ?? '?';
+        if (!mounted || tk == '?') return;
+        setState(() => _prev = tk.isEmpty ? <String>{} : tk.split(',').toSet());
+      }, onError: (Object _) {});
+    } else if (_tries++ < 6) {
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) _load();
+      });
+    }
+  }
+
+  Widget _chip(BuildContext ctx, String k, String a, String st) {
+    final c = widget.c;
+    final isNew = st == 'new', isOld = st == 'old', isNone = st == 'none';
+    final Color col = isOld ? c.red : (isNone ? c.mu : c.ac);
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: isNew ? c.ac : (isOld || isNone ? Colors.transparent : c.ac.withAlpha(22)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isNew ? c.ac : col.withAlpha(isNone ? 120 : 160)),
+      ),
+      child: Text(
+        k,
+        style: jakarta(11.5, FontWeight.w800, isNew ? c.on : col).copyWith(decoration: isOld ? TextDecoration.lineThrough : null),
+      ),
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // kartın "kupona ekle" dokunuşuna düşmesin: takıya basınca açıklama açılır
+      onTap: () {
+        if (isNone) {
+          _takiInfo(ctx, c, 'Takısız', 'Bugün hiç takı yok.', durum: 'Son koşuda takı vardı', durumRenk: c.red);
+        } else if (isOld) {
+          _takiInfo(ctx, c, k, 'Son koşuda vardı, bugün takılı değil.', durum: 'Çıkarıldı', durumRenk: c.red);
+        } else {
+          _takiInfo(ctx, c, k, a, durum: isNew ? 'Yeni takıldı · son koşuda yoktu' : null, durumRenk: c.gold);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(left: 4, bottom: 2, top: 4),
+        child: Stack(clipBehavior: Clip.none, children: [
+          Opacity(opacity: isOld ? 0.8 : 1, child: chip),
+          if (isNew)
+            Positioned(
+              top: -6,
+              right: -4,
+              child: Container(
+                width: 15,
+                height: 15,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: c.gold, shape: BoxShape.circle, border: Border.all(color: c.sf, width: 1.5)),
+                child: const Text('+', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, height: 1.05)),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = widget.h.taki.take(4).toList();
+    final curK = cur.map((e) => e.k).toSet();
+    final prev = _prev;
+    final kids = <Widget>[];
+    for (final t in cur) {
+      final st = prev != null && !prev.contains(t.k) ? 'new' : 'same';
+      kids.add(_chip(context, t.k, t.a, st));
+    }
+    if (prev != null) {
+      for (final k in prev) {
+        if (!curK.contains(k)) kids.add(_chip(context, k, '', 'old'));
+      }
+      if (cur.isEmpty && prev.isNotEmpty) kids.add(_chip(context, 'Takısız', '', 'none'));
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: kids);
+  }
+}
+
+void _takiInfo(BuildContext context, AppColors c, String kod, String aciklama, {String? durum, Color? durumRenk}) {
   showDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
@@ -1226,6 +1317,14 @@ void _takiInfo(BuildContext context, AppColors c, String kod, String aciklama) {
           ),
           const SizedBox(height: 14),
           Text(aciklama.isNotEmpty ? aciklama : 'Bu takı için açıklama bulunamadı.', textAlign: TextAlign.center, style: jakarta(15, FontWeight.w600, c.tx).copyWith(height: 1.35)),
+          if (durum != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(color: durumRenk ?? c.gold, borderRadius: BorderRadius.circular(12)),
+              child: Text(durum, style: jakarta(12.5, FontWeight.w800, Colors.white)),
+            ),
+          ],
           const SizedBox(height: 20),
           GestureDetector(
             onTap: () => Navigator.pop(ctx),

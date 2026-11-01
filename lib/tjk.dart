@@ -1049,12 +1049,14 @@ Future<String?> getIdmanMp4(Horse h, String iso) async {
 
 class AtRow {
   final String t, d, y, k, v, no, sh, kn, st;
-  const AtRow({this.t = '', this.d = '', this.y = '', this.k = '', this.v = '', this.no = '', this.sh = '', this.kn = '', this.st = ''});
+  /// O koşudaki takı kodları, virgülle (örn. 'KG,DB'). '' = takısız, '?' = bilinmiyor
+  final String tk;
+  const AtRow({this.t = '', this.d = '', this.y = '', this.k = '', this.v = '', this.no = '', this.sh = '', this.kn = '', this.st = '', this.tk = '?'});
   factory AtRow.fromMap(Map m) => AtRow(
         t: '${m['t'] ?? ''}', d: '${m['d'] ?? ''}', y: '${m['y'] ?? ''}', k: '${m['k'] ?? ''}', v: '${m['v'] ?? ''}',
-        no: '${m['no'] ?? ''}', sh: '${m['sh'] ?? ''}', kn: '${m['kn'] ?? ''}', st: '${m['st'] ?? ''}',
+        no: '${m['no'] ?? ''}', sh: '${m['sh'] ?? ''}', kn: '${m['kn'] ?? ''}', st: '${m['st'] ?? ''}', tk: '${m['tk'] ?? '?'}',
       );
-  AtRow withNo(String n) => AtRow(t: t, d: d, y: y, k: k, v: v, no: n, sh: sh, kn: kn, st: st);
+  AtRow withNo(String n) => AtRow(t: t, d: d, y: y, k: k, v: v, no: n, sh: sh, kn: kn, st: st, tk: tk);
 }
 
 /// null = kayıt yok
@@ -1126,6 +1128,7 @@ Map<String, Map<String, String>?> _atHistIso(List<String> a) {
     final iG = heads.indexWhere((h) => RegExp(r'^gny|ganyan').hasMatch(h));
     final iSt = heads.indexWhere((h) => h.replaceAll(RegExp(r'[^a-zçğıöşü]'), '') == 'st');
     final iK = heads.indexWhere((h) => RegExp(r'^k\.?\s*no').hasMatch(h));
+    final iTk = heads.indexWhere((h) => RegExp(r'tak[ıi]|ekipman').hasMatch(h));
     if (iT < 0) continue;
     for (var i = hi + 1; i < rows.length; i++) {
       final td = rows[i].querySelectorAll('td');
@@ -1173,6 +1176,7 @@ Map<String, Map<String, String>?> _atHistIso(List<String> a) {
           'sh': g(iH),
           'kn': kn,
           'v': video(g(iT)),
+          'tk': iTk >= 0 && iTk < td.length ? _takiCikar(td[iTk], '', null).map((e) => e.k).join(',') : '?',
         };
       }
       if (out['gal'] == null && iS >= 0 && RegExp(r'^1\b').hasMatch(g(iS))) {
