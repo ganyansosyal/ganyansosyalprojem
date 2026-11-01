@@ -20,7 +20,6 @@ class DailyBonus {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getString(_key) == _today()) return;
-      await prefs.setString(_key, _today());
       if (!context.mounted) return;
 
       await showGeneralDialog<void>(
@@ -29,7 +28,10 @@ class DailyBonus {
         barrierLabel: 'Günlük bonus',
         barrierColor: Colors.transparent,
         transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (ctx, _, __) => const PopScope(canPop: false, child: _BonusCard()),
+        pageBuilder: (ctx, _, __) => PopScope(
+          canPop: false,
+          child: _BonusCard(onEarned: () => prefs.setString(_key, _today())),
+        ),
         transitionBuilder: (ctx, anim, _, child) {
           final t = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
           return FadeTransition(
@@ -43,22 +45,36 @@ class DailyBonus {
 }
 
 class _BonusCard extends StatefulWidget {
-  const _BonusCard();
+  const _BonusCard({required this.onEarned});
+  final Future<void> Function() onEarned;
   @override
   State<_BonusCard> createState() => _BonusCardState();
 }
 
 class _BonusCardState extends State<_BonusCard> {
   bool _loading = false;
+  bool _failed = false;
 
   Future<void> _watch() async {
     if (_loading) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    var ok = false;
     try {
-      await watchVideoForCredit(context, reward: Credits.dailyBonus);
-    } finally {
-      // Reklam kapanınca (ya da açılamayınca) pencere kaybolur.
+      ok = await watchVideoForCredit(context, reward: Credits.dailyBonus);
+    } catch (_) {}
+    if (ok) {
+      // Bonus sadece ödül alınınca "bugün kullanıldı" sayılır.
+      await widget.onEarned();
       if (mounted) Navigator.of(context).pop();
+    } else if (mounted) {
+      // Reklam gösterilemedi ya da sonuna kadar izlenmedi: tekrar dene ya da kapat.
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
     }
   }
 
@@ -107,7 +123,7 @@ class _BonusCardState extends State<_BonusCard> {
                   Text('Günlük bonus', style: jakarta(22, FontWeight.w800, c.tx)),
                   const SizedBox(height: 8),
                   Text(
-                    'Kısa bir video izle, hemen kredi kazan.',
+                    'Uygulamayı kullanabilmek için günde bir kez kısa bir video izle.',
                     textAlign: TextAlign.center,
                     style: jakarta(14, FontWeight.w500, c.mu),
                   ),
@@ -124,7 +140,20 @@ class _BonusCardState extends State<_BonusCard> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Video izleyince kredi hesabına eklenir',
+                    style: jakarta(12, FontWeight.w600, c.mu),
+                  ),
+                  if (_failed) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Reklam şu an gösterilemedi ya da tamamlanmadı.',
+                      textAlign: TextAlign.center,
+                      style: jakarta(12.5, FontWeight.w600, c.red),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -147,13 +176,18 @@ class _BonusCardState extends State<_BonusCard> {
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.play_arrow_rounded, color: c.on),
+                                Icon(_failed ? Icons.refresh_rounded : Icons.play_arrow_rounded, color: c.on),
                                 const SizedBox(width: 6),
-                                Text('Videoyu izle', style: jakarta(16, FontWeight.w800, c.on)),
+                                Text(_failed ? 'Tekrar dene' : 'Videoyu izle', style: jakarta(16, FontWeight.w800, c.on)),
                               ],
                             ),
                     ),
                   ),
+                  if (_failed)
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text('Şimdi değil', style: jakarta(13, FontWeight.w700, c.mu)),
+                    ),
                 ],
               ),
             ),
