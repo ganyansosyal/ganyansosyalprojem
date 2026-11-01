@@ -15,7 +15,6 @@ import 'results.dart';
 import 'settle.dart';
 import 'theme.dart';
 import 'update_check.dart';
-import 'daily_bonus.dart';
 import 'user_search.dart';
 
 class Shell extends StatefulWidget {
@@ -57,9 +56,6 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     UpdateCheck.run();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) DailyBonus.run(context);
-    });
     final u = profileNotifier.value?.uid ?? '';
     if (u.isNotEmpty) {
       Settler.start(u);
