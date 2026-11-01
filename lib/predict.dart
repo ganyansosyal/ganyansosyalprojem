@@ -1191,8 +1191,8 @@ Widget _son6Row(AppColors c, Horse h) {
           ]),
         ),
     ],
-    const Spacer(),
-    _TakiRow(c, h),
+    const SizedBox(width: 6),
+    Expanded(child: Align(alignment: Alignment.centerRight, child: _TakiRow(c, h))),
   ]);
 }
 
@@ -1661,13 +1661,13 @@ class _TakiRowState extends State<_TakiRow> {
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: isNew ? c.ac : (isOld || isNone ? Colors.transparent : c.ac.withAlpha(22)),
+        color: isNew ? c.ac : (isOld ? c.red.withAlpha(34) : (isNone ? Colors.transparent : c.ac.withAlpha(22))),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isNew ? c.ac : col.withAlpha(isNone ? 120 : 160)),
+        border: Border.all(color: isNew ? c.ac : (isOld ? c.red : col.withAlpha(isNone ? 120 : 160)), width: isOld ? 1.6 : 1),
       ),
       child: Text(
         k,
-        style: jakarta(11.5, FontWeight.w800, isNew ? c.on : col).copyWith(decoration: isOld ? TextDecoration.lineThrough : null),
+        style: jakarta(11.5, FontWeight.w800, isNew ? c.on : col).copyWith(decoration: isOld ? TextDecoration.lineThrough : null, decorationColor: c.red, decorationThickness: 2.6),
       ),
     );
     return GestureDetector(
@@ -1719,7 +1719,7 @@ class _TakiRowState extends State<_TakiRow> {
       }
       if (cur.isEmpty && prev.isNotEmpty) kids.add(_chip(context, 'Takısız', '', 'none'));
     }
-    return Row(mainAxisSize: MainAxisSize.min, children: kids);
+    return Wrap(alignment: WrapAlignment.end, runSpacing: 2, children: kids);
   }
 }
 

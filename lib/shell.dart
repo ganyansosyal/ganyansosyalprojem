@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin.dart';
 import 'auth_service.dart';
+import 'beraber.dart';
 import 'feed.dart';
 import 'leaders.dart';
 import 'notifs.dart';
@@ -459,6 +460,11 @@ class AppDrawer extends StatelessWidget {
                     _DrawerRow(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
+                    }),
+                    Divider(height: 1, color: c.ln),
+                    _DrawerRow(icon: Icons.groups_outlined, label: 'Beraber koşular', onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TogetherPage()));
                     }),
                     Divider(height: 1, color: c.ln),
                     _DrawerRow(icon: Icons.menu_book_outlined, label: 'Kurallar', onTap: () {
