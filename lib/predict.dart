@@ -76,6 +76,7 @@ class _PredictPageState extends State<PredictPage> {
   final List<_Sel> _sel = [];
   final Map<String, int> _legSel = {};
   bool _busy = false;
+  bool _videoDone = false; // bu oturumda video izlendi: eksiği paylaşırken sistem tamamlar
   final Set<String> _detOpen = {}, _orOpen = {};
   bool _idmBusy = false;
 
@@ -381,11 +382,6 @@ class _PredictPageState extends State<PredictPage> {
       _toast('${_t.name} ${(c['legs'] as List)[0]['r']}. koşuda oynanmıyor.');
       return null;
     }
-    final lm = await _limit(c);
-    if (lm != null) {
-      _toast(lm);
-      return null;
-    }
     final legs = (c['legs'] as List).cast<Map>();
     final slotted = legs.any((l) => l['slot'] != null);
     if (_t.tabs > 0) {
@@ -411,10 +407,6 @@ class _PredictPageState extends State<PredictPage> {
     final tut = couponCost(c);
     if (tut < asgari) {
       _toast('Asgari kupon bedeli ${money(asgari)} · şu an ${money(tut)}, misli artır.');
-      return null;
-    }
-    if (limitliMi(c['type'].toString()) && !_admin && tut > altiliMax) {
-      _toast("${c['type']} kuponu en fazla ${money(altiliMax)} olabilir · şu an ${money(tut)}. Seçimini azalt.");
       return null;
     }
     return c;
@@ -514,9 +506,14 @@ class _PredictPageState extends State<PredictPage> {
     );
     if (ok != true) return;
     final need = couponCost(c).ceil();
-    if (!_admin && !await Credits.spend(me.uid, n: need)) {
-      _toast('Krediniz yetmiyor ($need kredi gerekli). Video izleyip kredi kazanın.');
-      return;
+    if (!_admin) {
+      if (_videoDone) {
+        await Credits.spendWithTopUp(me.uid, n: need);
+        if (mounted) setState(() => _videoDone = false);
+      } else if (!await Credits.spend(me.uid, n: need)) {
+        _toast('Krediniz yetmiyor ($need kredi gerekli). Video izleyip kredi kazanın.');
+        return;
+      }
     }
     final db = FirebaseFirestore.instance;
     final ts = DateTime.now().millisecondsSinceEpoch;
@@ -1586,7 +1583,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
           stream: Credits.watch(profileNotifier.value?.uid ?? ''),
           builder: (context, snap) {
           final kr = snap.data ?? Credits.welcome;
-          final yok = !_admin && kr < cost.ceil();
+          final yok = !_admin && !_videoDone && kr < cost.ceil();
           return Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1618,7 +1615,12 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
           SizedBox(
             height: 36,
             child: FilledButton(
-              onPressed: _busy || _sel.isEmpty ? null : (yok ? () => watchVideoForCredit(context) : _share),
+              onPressed: _busy || _sel.isEmpty ? null : (yok
+                  ? () async {
+                      final ok = await watchVideoForCredit(context);
+                      if (ok && mounted) setState(() => _videoDone = true);
+                    }
+                  : _share),
               style: FilledButton.styleFrom(
                 backgroundColor: yok ? c.gold : c.ac, 
                 padding: const EdgeInsets.symmetric(horizontal: 16), 
