@@ -472,17 +472,11 @@ Widget build(BuildContext context) {
                             ),
                           ),
                           const SizedBox(height: 3),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 5,
-                            crossAxisAlignment: WrapCrossAlignment.center,
+                          Row(
                             children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                            decoration: BoxDecoration(color: c.ac.withAlpha(20), borderRadius: BorderRadius.circular(9)),
-                            child: Text('@${p.handle}', style: jakarta(12.5, FontWeight.w700, c.ac)),
-                          ),
-                          if (isAdminNotifier.value)
+                          Flexible(child: _HandleChip(text: '@${p.handle}', color: c.ac, bg: c.ac.withAlpha(20))),
+                          if (isAdminNotifier.value) ...[
+                              const SizedBox(width: 10),
                               GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: canManage ? openMenu : null,
@@ -500,7 +494,8 @@ Widget build(BuildContext context) {
                               ),
                               ),
                             ],
-                          ),
+                          ],
+                        ),
                         ],
                       ),
                     ),
@@ -916,5 +911,36 @@ class _KbPad extends StatelessWidget {
       height: double.infinity,
       child: Padding(padding: EdgeInsets.only(bottom: kb > safe ? kb : safe), child: child),
     );
+  }
+}
+
+
+/// @kullanıcıadı hapı: uzunsa yazı 10.5'e kadar küçülür, hâlâ sığmazsa sonu ... ile kesilir.
+class _HandleChip extends StatelessWidget {
+  const _HandleChip({required this.text, required this.color, required this.bg});
+  final String text;
+  final Color color;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, cons) {
+      const pad = 9.0;
+      var size = 12.5;
+      final avail = cons.maxWidth - pad * 2;
+      if (avail > 0 && avail.isFinite) {
+        final tp = TextPainter(
+          text: TextSpan(text: text, style: jakarta(size, FontWeight.w700, color)),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout();
+        if (tp.width > avail) size = (size * avail / tp.width).clamp(10.5, 12.5).toDouble();
+      }
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: pad, vertical: 3),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(9)),
+        child: Text(text, maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis, style: jakarta(size, FontWeight.w700, color)),
+      );
+    });
   }
 }
