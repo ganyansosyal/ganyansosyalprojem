@@ -1469,8 +1469,8 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
-                      final nowOn = await HorseWatch.i.toggle(h.name, h.atId);
-                      _toast(nowOn ? '${h.name} takip edildi. Koşacağı zaman zile bildirim gelecek.' : '${h.name} takipten çıkarıldı.');
+                      final m = await showHorseNoteSheet(context, h.name, h.atId);
+                      if (m != null) _toast(m);
                     },
                     child: Padding(
                       padding: const EdgeInsets.only(right: 4),

@@ -33,7 +33,7 @@ class HorseWatch extends ChangeNotifier {
 
   static const _hour = 3600 * 1000;
   final _resume = _Resume();
-  List<({String n, String id})> follows = [];
+  List<({String n, String id, String note})> follows = [];
   String _uid = '';
   Timer? _t;
   bool _busy = false;
@@ -63,7 +63,7 @@ class HorseWatch extends ChangeNotifier {
       final l = (d.data()?['fhorses'] as List?) ?? const [];
       follows = [
         for (final x in l.whereType<Map>())
-          if ((x['n'] ?? '').toString().isNotEmpty) (n: x['n'].toString(), id: (x['id'] ?? '').toString())
+          if ((x['n'] ?? '').toString().isNotEmpty) (n: x['n'].toString(), id: (x['id'] ?? '').toString(), note: (x['note'] ?? '').toString())
       ];
       notifyListeners();
     } catch (_) {}
@@ -74,7 +74,7 @@ class HorseWatch extends ChangeNotifier {
   Future<void> _save() async {
     try {
       await _me.set({
-        'fhorses': [for (final f in follows) {'n': f.n, 'id': f.id}]
+        'fhorses': [for (final f in follows) {'n': f.n, 'id': f.id, 'note': f.note}]
       }, SetOptions(merge: true));
     } catch (_) {}
   }
@@ -86,12 +86,35 @@ class HorseWatch extends ChangeNotifier {
     if (on) {
       follows = follows.where((f) => _key(f.n) != k).toList();
     } else {
-      follows = [...follows, (n: name, id: atId)];
+      follows = [...follows, (n: name, id: atId, note: '')];
     }
     notifyListeners();
     await _save();
     if (!on) check();
     return !on;
+  }
+
+  String noteOf(String name) {
+    final k = _key(name);
+    for (final f in follows) {
+      if (_key(f.n) == k) return f.note;
+    }
+    return '';
+  }
+
+  /// Notu kaydeder; at takipte değilse takibe de alır.
+  Future<void> setNote(String name, String atId, String note) async {
+    final k = _key(name);
+    final t = note.trim();
+    final on = follows.any((f) => _key(f.n) == k);
+    if (on) {
+      follows = [for (final f in follows) _key(f.n) == k ? (n: f.n, id: f.id, note: t) : f];
+    } else {
+      follows = [...follows, (n: name, id: atId, note: t)];
+    }
+    notifyListeners();
+    await _save();
+    if (!on) check();
   }
 
   DateTime? _start(String iso, String saat) {
@@ -169,6 +192,147 @@ class HorseWatch extends ChangeNotifier {
   }
 }
 
+/* ---------------- Not penceresi ---------------- */
+
+/// Yıldıza dokununca açılır. Dönen metin toast olarak gösterilir (null = vazgeçildi).
+Future<String?> showHorseNoteSheet(BuildContext context, String name, String atId) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _NoteSheet(name: name, atId: atId),
+  );
+}
+
+class _NoteSheet extends StatefulWidget {
+  final String name, atId;
+  const _NoteSheet({required this.name, required this.atId});
+  @override
+  State<_NoteSheet> createState() => _NoteSheetState();
+}
+
+class _NoteSheetState extends State<_NoteSheet> {
+  late final TextEditingController _ctl = TextEditingController(text: HorseWatch.i.noteOf(widget.name));
+  static const _quick = ['Formda', 'Pist sevmiyor', 'Kilo avantajı', 'Son dakikaya bak', 'Ganyana koy'];
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _add(String t) {
+    final cur = _ctl.text.trim();
+    _ctl.text = cur.isEmpty ? t : '$cur · $t';
+    _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final following = HorseWatch.i.isFollowing(widget.name);
+    final mq = MediaQuery.of(context);
+    final kb = mq.viewInsets.bottom;
+    final bottom = kb > 0 ? kb : mq.padding.bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Container(
+        decoration: BoxDecoration(color: c.sf, borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: c.ln, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: c.gold.withAlpha(32), borderRadius: BorderRadius.circular(14)),
+                child: Icon(Icons.star_rounded, color: c.gold, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(17, FontWeight.w800, c.tx)),
+                  Text('Kendine not bırak, takip edilen atlarda görünür.', style: jakarta(12, FontWeight.w600, c.mu)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _ctl,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 300,
+              scrollPadding: const EdgeInsets.only(bottom: 140),
+              textCapitalization: TextCapitalization.sentences,
+              style: jakarta(14, FontWeight.w600, c.tx),
+              decoration: InputDecoration(
+                hintText: 'Örn. son koşusunda geç açıldı, pist ağırsa bak…',
+                hintStyle: jakarta(14, FontWeight.w500, c.mu),
+                filled: true,
+                fillColor: c.sf2,
+                counterStyle: jakarta(11, FontWeight.w600, c.mu),
+                isDense: true,
+                contentPadding: const EdgeInsets.all(14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: c.ac, width: 1.6)),
+              ),
+            ),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final q in _quick)
+                GestureDetector(
+                  onTap: () => _add(q),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: c.ln)),
+                    child: Text(q, style: jakarta(12, FontWeight.w700, c.tx)),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 18),
+            Row(children: [
+              if (following)
+                TextButton(
+                  onPressed: () async {
+                    await HorseWatch.i.toggle(widget.name, widget.atId);
+                    if (context.mounted) Navigator.pop(context, '${widget.name} takipten çıkarıldı.');
+                  },
+                  child: Text('Takibi bırak', style: jakarta(13.5, FontWeight.w700, c.red)),
+                ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Vazgeç', style: jakarta(13.5, FontWeight.w700, c.mu)),
+              ),
+              const SizedBox(width: 6),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: c.ac,
+                  foregroundColor: c.on,
+                  padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () async {
+                  await HorseWatch.i.setNote(widget.name, widget.atId, _ctl.text);
+                  if (context.mounted) {
+                    Navigator.pop(context, following ? 'Not kaydedildi.' : '${widget.name} takip edildi. Koşacağı zaman zile bildirim gelecek.');
+                  }
+                },
+                child: Text('Kaydet', style: jakarta(14, FontWeight.w800, c.on)),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 /* ---------------- Takip atları sayfası ---------------- */
 
 class FollowedHorsesPage extends StatelessWidget {
@@ -211,19 +375,58 @@ class FollowedHorsesPage extends StatelessWidget {
                   itemCount: l.length,
                   itemBuilder: (_, i) {
                     final f = l[i];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
-                      child: Row(children: [
-                        Icon(Icons.star_rounded, color: c.gold, size: 22),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(f.n, style: jakarta(15, FontWeight.w800, c.tx))),
-                        TextButton(
-                          onPressed: () => HorseWatch.i.toggle(f.n, f.id),
-                          child: Text('Takibi bırak', style: jakarta(13, FontWeight.w700, c.red)),
-                        ),
-                      ]),
+                    final has = f.note.isNotEmpty;
+                    return GestureDetector(
+                      onTap: () async {
+                        final m = await showHorseNoteSheet(context, f.n, f.id);
+                        if (m != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                        decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.ln)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(color: c.gold.withAlpha(32), borderRadius: BorderRadius.circular(12)),
+                              child: Icon(Icons.star_rounded, color: c.gold, size: 21),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(f.n, style: jakarta(15, FontWeight.w800, c.tx))),
+                            TextButton(
+                              onPressed: () => HorseWatch.i.toggle(f.n, f.id),
+                              child: Text('Takibi bırak', style: jakarta(13, FontWeight.w700, c.red)),
+                            ),
+                          ]),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                            decoration: BoxDecoration(
+                              color: has ? c.gold.withAlpha(22) : c.sf2,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border(left: BorderSide(color: has ? c.gold : c.ln, width: 3.5)),
+                            ),
+                            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Icon(has ? Icons.edit_note_rounded : Icons.add_rounded, size: 20, color: has ? c.gold : c.mu),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  has ? f.note : 'Not ekle',
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: jakarta(13, has ? FontWeight.w600 : FontWeight.w700, has ? c.tx : c.mu),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ]),
+                      ),
                     );
                   },
                 );
