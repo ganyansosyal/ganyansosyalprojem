@@ -17,7 +17,8 @@ import 'theme.dart';
 class Credits {
   static const int welcome = 3; // ilk kredi hediyesi
   static const int perKupon = 1; // bir kupon paylaşmanın bedeli
-  static const int videoReward = 100; // her video izlemeye verilen kredi
+  static const int videoReward = 200; // her video izlemeye verilen kredi
+  static const int dailyBonus = 100; // günlük açılış bonusu
   static final _db = FirebaseFirestore.instance;
 
   /// Canlı kredi sayısı (profilde / ana sayfada göstermek için).
@@ -112,7 +113,7 @@ Future<bool> _playAdMobDirect() {
   return done.future;
 }
 
-Future<void> watchVideoForCredit(BuildContext context) async {
+Future<void> watchVideoForCredit(BuildContext context, {int reward = Credits.videoReward}) async {
   final me = profileNotifier.value;
   if (me == null || _adBusy) return;
   _adBusy = true;
@@ -123,10 +124,10 @@ Future<void> watchVideoForCredit(BuildContext context) async {
   try {
     final ok = await _playVideo();
     if (ok) {
-      await Credits.add(me.uid);
+      await Credits.add(me.uid, n: reward);
       sm
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('+${Credits.videoReward} kredi kazandın!'), duration: const Duration(seconds: 2)));
+        ..showSnackBar(SnackBar(content: Text('+$reward kredi kazandın!'), duration: const Duration(seconds: 2)));
     } else {
       sm
         ..hideCurrentSnackBar()
