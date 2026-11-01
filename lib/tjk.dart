@@ -351,6 +351,9 @@ List<({String s, String c})> _son6Ayir(Element? hucre) {
   return out.length > 6 ? out.sublist(out.length - 6) : out;
 }
 
+/// TJK'dan okunan takı açıklamaları (kod -> anlam). Çıkarılan takılarda da kullanılır.
+final Map<String, String> takiAnlamCache = {};
+
 final _takiKod = RegExp(r'^[A-ZÇĞİÖŞÜ]{1,4}$');
 const _takiBilinen = ['KGK', 'KDB', 'ÖDB', 'SKG', 'GKR', 'DB', 'KG', 'SK', 'ÖG', 'K'];
 
@@ -360,6 +363,7 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
     k = k.replaceAll(RegExp(r'\s+'), '');
     if (!_takiKod.hasMatch(k)) return;
     a = a.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (a.isNotEmpty) takiAnlamCache[k] = a;
     final i = out.indexWhere((x) => x.k == k);
     if (i >= 0) {
       if (out[i].a.isEmpty && a.isNotEmpty) out[i] = (k: k, a: a);

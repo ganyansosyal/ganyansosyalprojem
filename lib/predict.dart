@@ -1677,9 +1677,9 @@ class _TakiRowState extends State<_TakiRow> {
         if (isNone) {
           _takiInfo(ctx, c, 'Takısız', 'Bugün hiç takı yok.', durum: 'Son koşuda takı vardı', durumRenk: c.red);
         } else if (isOld) {
-          _takiInfo(ctx, c, k, 'Son koşuda vardı, bugün takılı değil.', durum: 'Çıkarıldı', durumRenk: c.red);
+          _takiInfo(ctx, c, k, takiAnlamCache[k] ?? _takiAnlam[k] ?? '', durum: 'Çıkarıldı · son koşuda vardı, bugün takılı değil', durumRenk: c.red);
         } else {
-          _takiInfo(ctx, c, k, a, durum: isNew ? 'Yeni takıldı · son koşuda yoktu' : null, durumRenk: c.gold);
+          _takiInfo(ctx, c, k, a.isNotEmpty ? a : (takiAnlamCache[k] ?? _takiAnlam[k] ?? ''), durum: isNew ? 'Yeni takıldı · son koşuda yoktu' : null, durumRenk: c.gold);
         }
       },
       child: Container(
@@ -1722,6 +1722,19 @@ class _TakiRowState extends State<_TakiRow> {
     return Wrap(alignment: WrapAlignment.end, runSpacing: 2, children: kids);
   }
 }
+
+const Map<String, String> _takiAnlam = {
+  'K': 'Kulaklık takılacak',
+  'KG': 'Kapalı gözlük takılacak',
+  'DB': 'Dili bağlanacak',
+  'SK': 'Ringden start\'a kadar kulaklıkla gelecek',
+  'SKG': 'Ringden start\'a kadar kapalı gözlükle gelecek',
+  'SGK': 'Ringden start\'a kadar gözleri kapalı gelecek',
+  'GKR': 'Göz koruyucu takılacak',
+  'YP': 'Yanak peluşu takılacak',
+  'TGK': 'Tek gözü kapalı koşacak',
+  'ÖG': 'Start makinesine önden girecek',
+};
 
 void _takiInfo(BuildContext context, AppColors c, String kod, String aciklama, {String? durum, Color? durumRenk}) {
   showDialog<void>(
