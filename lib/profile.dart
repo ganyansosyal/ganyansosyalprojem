@@ -8,7 +8,9 @@ import 'package:image_picker/image_picker.dart';
 import 'admin.dart' show canManageUser, showUserAdminMenu, toggleBanUser, banActive;
 import 'auth_service.dart';
 import 'feed.dart';
+import 'credits.dart' show Credits;
 import 'scoring.dart';
+import 'settle.dart' show isAdminNotifier;
 import 'shell.dart' show IconBox;
 import 'theme.dart';
 import 'tjk.dart' show liveResTick;
@@ -472,6 +474,22 @@ Widget build(BuildContext context) {
                             decoration: BoxDecoration(color: c.ac.withAlpha(20), borderRadius: BorderRadius.circular(9)),
                             child: Text('@${p.handle}', style: jakarta(12.5, FontWeight.w700, c.ac)),
                           ),
+                          if (isAdminNotifier.value)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: StreamBuilder<int>(
+                                stream: Credits.watch(widget.uid),
+                                builder: (context, snap) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                  decoration: BoxDecoration(color: c.gold.withAlpha(30), borderRadius: BorderRadius.circular(9)),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.toll_rounded, size: 13, color: c.gold),
+                                    const SizedBox(width: 4),
+                                    Text('Kredi: ${snap.data ?? '...'}', style: jakarta(12, FontWeight.w800, c.gold)),
+                                  ]),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

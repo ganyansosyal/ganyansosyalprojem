@@ -213,11 +213,25 @@ Future<void> adminGiveCreditDialog(BuildContext context, String uid, String name
       return AlertDialog(
         backgroundColor: c.sf,
         title: Text('Kredi ver: $name', style: jakarta(16, FontWeight.w800, c.tx)),
-        content: TextField(
-          controller: ctl,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(signed: true),
-          decoration: const InputDecoration(hintText: 'Örn. 100 (eksi yazarsan düşer)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            StreamBuilder<int>(
+              stream: Credits.watch(uid),
+              builder: (context, snap) => Text(
+                'Mevcut kredi: ${snap.data ?? '...'}',
+                style: jakarta(13, FontWeight.w800, c.gold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: ctl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(signed: true),
+              decoration: const InputDecoration(hintText: 'Örn. 100 (eksi yazarsan düşer)'),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Vazgeç')),

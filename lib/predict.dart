@@ -1589,7 +1589,10 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_t.mode == 'legs' ? '$filled/${_lr.length} ayak${filled < _lr.length ? ' · ${_lr.length - filled} eksik · şimdilik' : ''}' : '$k kolon', style: jakarta(10.5, FontWeight.w600, c.mu)),
               Text(money(cost), style: jakarta(18, FontWeight.w800, c.ac)),
-              Text('Kredi: $kr', style: jakarta(11, FontWeight.w800, c.gold)),
+              Text(
+                yok && cost > 0 ? 'Kredi: $kr · Yetersiz, ${cost.ceil() - kr} eksik' : 'Kredi: $kr',
+                style: jakarta(11, FontWeight.w800, yok && cost > 0 ? c.red : c.gold),
+              ),
             ]),
           ),
           Container(
