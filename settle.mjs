@@ -4,7 +4,7 @@ import admin from 'firebase-admin';
 import * as cheerio from 'cheerio';
 
 const WRITE = process.env.WRITE === '1';
-const BACKENDS = ['https://bulten.bilyoncu001.workers.dev', 'https://tiny-sunset-7f18.bilyoncu001.workers.dev'];
+const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Mobile Safari/537.36';
 
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
 const db = admin.firestore();
@@ -20,13 +20,13 @@ async function fetchHtml(url) {
   let last;
   for (let i = 0; i < 4; i++) {
     try {
-      const r = await fetch(`${BACKENDS[i % 2]}?url=${encodeURIComponent(url)}&_cb=${Date.now()}`, { signal: AbortSignal.timeout(30000) });
+      const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'tr-TR,tr;q=0.9' }, signal: AbortSignal.timeout(30000) });
       if (r.ok) return await r.text();
       last = 'HTTP ' + r.status;
     } catch (e) {
       last = e.message;
     }
-    await sleep(1500);
+    await sleep(1500 * (i + 1));
   }
   throw new Error('TJK bağlantı hatası: ' + last);
 }
