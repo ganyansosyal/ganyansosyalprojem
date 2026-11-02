@@ -1267,7 +1267,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
       width: double.infinity,
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: col.withAlpha(20), borderRadius: BorderRadius.circular(14), border: Border.all(color: col.withAlpha(150), width: 1.5)),
+      decoration: BoxDecoration(color: col.withAlpha(20), borderRadius: BorderRadius.circular(14)),
       child: Row(crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start, children: [
         if (lead != null) ...[lead, const SizedBox(width: 10)],
         Expanded(child: left),
@@ -1307,7 +1307,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
         child: Container(
           margin: const EdgeInsets.only(top: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(color: c.red.withAlpha(20), borderRadius: BorderRadius.circular(14), border: Border.all(color: c.red.withAlpha(150), width: 1.5)),
+          decoration: BoxDecoration(color: c.red.withAlpha(20), borderRadius: BorderRadius.circular(14)),
           child: Row(children: [
             Container(width: 26, height: 26, decoration: BoxDecoration(color: c.red, shape: BoxShape.circle), child: const Icon(Icons.play_arrow, color: Colors.white, size: 16)),
             const SizedBox(width: 8),
