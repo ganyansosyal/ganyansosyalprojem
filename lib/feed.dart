@@ -495,15 +495,19 @@ class _FeedPageState extends State<FeedPage> {
             onTap: () => showLive(context),
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: softCard(c),
+              decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(20)),
               child: Row(children: [
-                Container(width: 32, height: 32, decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.live_tv, color: Colors.white, size: 18)),
-                const SizedBox(width: 6),
+                Container(width: 38, height: 38, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(Icons.play_arrow_outlined, color: c.red, size: 26)),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Canlı yayın', maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(12, FontWeight.w800, c.tx)),
-                    const SizedBox(height: 2),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(8)), child: Text('İZLE', style: jakarta(10, FontWeight.w800, Colors.white))),
+                    Text('Canlı yayın', maxLines: 2, overflow: TextOverflow.ellipsis, style: jakarta(13, FontWeight.w800, Colors.white)),
+                    const SizedBox(height: 3),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                      const SizedBox(width: 4),
+                      Text('CANLI', style: jakarta(10, FontWeight.w800, Colors.white)),
+                    ]),
                   ]),
                 ),
               ]),
