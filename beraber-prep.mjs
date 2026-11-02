@@ -183,11 +183,11 @@ function parsePast(html, atId) {
     const iJk = ix(/jokey/);
     const iG = ix(/^gny|ganyan/);
     const iK = ix(/^k\.?\s*no/);
-    const iKg = ix(/siklet|^kg/);
+    const iKg = ix(/s[ıi]klet|^kg/);
     const iHp = ix(/^hp/);
     const iTk = ix(/tak[ıi]|ekipman/);
     if (iT < 0) continue;
-    for (let i = hi + 1; i < rows.length && out.length < 40; i++) {
+    for (let i = hi + 1; i < rows.length && out.length < 150; i++) {
       const td = $(rows[i]).find('td').toArray();
       if (td.length <= iT) continue;
       const g = (idx) => (idx >= 0 && idx < td.length ? clean($(td[idx]).text()) : '');
@@ -419,7 +419,7 @@ function build(horses, pasts) {
     groups.push({ key, t: rows[0].p.t, rows: rows.map((r) => ({ id: r.id, ...r.p })) });
   }
   groups.sort((a, b) => dateOf(b.t) - dateOf(a.t));
-  return groups.slice(0, 12).map(({ key, rows }) => ({ key, rows }));
+  return groups.slice(0, 80).map(({ key, rows }) => ({ key, rows }));
 }
 
 async function pool(items, n, fn) {
