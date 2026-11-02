@@ -122,10 +122,7 @@ class _TogetherPageState extends State<TogetherPage> {
     _groups.value = null;
     final hs = [for (final h in race.atlar) if (!h.kosmaz && h.atId.isNotEmpty) h];
     final data = <String, List<AtPast>>{};
-    // Sunucudan tüm atların sayfası tek istekle gelir (olmazsa aşağıda tek tek çekilir)
-    await atPastToplu([for (final h in hs) h.atId]);
-    if (!mounted || gen != _gen) return;
-    // Hızlı: 5 at aynı anda çekilir (eskiden tek tek bekliyordu)
+    // Worker yok: tüm atlar (en fazla 14) aynı anda doğrudan TJK'dan çekilir
     var next = 0;
     Future<void> worker() async {
       while (true) {
@@ -148,7 +145,7 @@ class _TogetherPageState extends State<TogetherPage> {
       }
     }
 
-    await Future.wait([for (var i = 0; i < 5; i++) worker()]);
+    await Future.wait([for (var i = 0; i < (hs.length < 14 ? hs.length : 14); i++) worker()]);
     if (!mounted || gen != _gen) return;
     final g = _build(data);
     _cache[ck] = g;
