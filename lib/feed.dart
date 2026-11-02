@@ -465,7 +465,7 @@ class _FeedPageState extends State<FeedPage> {
             onTap: () { if (me != null) Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileRoute(uid: me.uid))); },
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: c.ac.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ac.withAlpha(90))),
+              decoration: softCard(c),
               child: Row(children: [
                 Avatar(profile: me, size: 46),
                 const SizedBox(width: 8),
@@ -495,7 +495,7 @@ class _FeedPageState extends State<FeedPage> {
             onTap: () => showLive(context),
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: c.red.withAlpha(16), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.red.withAlpha(70))),
+              decoration: softCard(c),
               child: Row(children: [
                 Container(width: 32, height: 32, decoration: BoxDecoration(color: c.red, borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.live_tv, color: Colors.white, size: 18)),
                 const SizedBox(width: 6),
@@ -672,7 +672,7 @@ class _NextRaceBarState extends State<_NextRaceBar> {
         height: 46,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(color: c.ac.withAlpha(14), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ac.withAlpha(90))),
+        decoration: softCard(c),
         child: Row(children: [
           Text('SIRADAKİ KOŞU', style: jakarta(9.5, FontWeight.w800, c.ac).copyWith(letterSpacing: 1.1)),
           const SizedBox(width: 8),
@@ -688,7 +688,7 @@ class _NextRaceBarState extends State<_NextRaceBar> {
       child: Container(
         height: 46,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(color: c.ac.withAlpha(14), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ac.withAlpha(90))),
+        decoration: softCard(c),
         child: Row(children: [
           Text('SIRADAKİ KOŞU', style: jakarta(9.5, FontWeight.w800, c.ac).copyWith(letterSpacing: 1.1)),
           const SizedBox(width: 8),

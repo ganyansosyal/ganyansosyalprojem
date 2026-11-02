@@ -76,10 +76,45 @@ class NoBounceScroll extends MaterialScrollBehavior {
   ScrollPhysics getScrollPhysics(BuildContext context) => const GlideScrollPhysics();
 }
 
+/// Tüm sayfa geçişleri: yumuşak fade (açılırken ve geri dönerken).
+/// Ana sayfadaki kartlar: beyaz zemin, 1.5 px kenar, yumuşak gölge (diğer ekranlarla aynı his).
+BoxDecoration softCard(AppColors c, {double radius = 18}) => BoxDecoration(
+      color: c.sf,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: c.ln, width: 1.5),
+      boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 3))],
+    );
+
+class SoftFadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const SoftFadePageTransitionsBuilder();
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 240);
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context,
+      Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut, reverseCurve: Curves.easeIn),
+      child: child,
+    );
+  }
+}
+
 ThemeData buildTheme(AppColors c, Brightness b) {
   final base = ThemeData(brightness: b, useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: c.bg,
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: SoftFadePageTransitionsBuilder(),
+      TargetPlatform.iOS: SoftFadePageTransitionsBuilder(),
+      TargetPlatform.fuchsia: SoftFadePageTransitionsBuilder(),
+      TargetPlatform.linux: SoftFadePageTransitionsBuilder(),
+      TargetPlatform.macOS: SoftFadePageTransitionsBuilder(),
+      TargetPlatform.windows: SoftFadePageTransitionsBuilder(),
+    }),
     // Tema değişince butonlar 200 ms'lik ara renk animasyonu yapmasın (bir kare eski çerçeve kalıyordu)
     outlinedButtonTheme: OutlinedButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
     filledButtonTheme: FilledButtonThemeData(style: ButtonStyle(animationDuration: Duration.zero)),
