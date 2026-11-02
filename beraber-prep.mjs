@@ -161,6 +161,27 @@ const pistAd = (p) => {
   return t;
 };
 const TAKI_KOD = /^[A-ZÇĞİÖŞÜ]{1,4}$/;
+const TAKI_ATOM = ['SKG', 'GKR', 'KG', 'SK', 'DB', 'ÖG', 'K'];
+// "KGDBSK" -> [KG, DB, SK]; tamamen bilinen takılara bölünemezse null
+function takiBol(s) {
+  if (!s) return [];
+  for (const a of TAKI_ATOM) {
+    if (s.startsWith(a)) {
+      const r = takiBol(s.slice(a.length));
+      if (r) return [a, ...r];
+    }
+  }
+  return null;
+}
+// Hücre metninden takı kodları: birleşik yazılmış olanları da böler
+function takiListe(metin) {
+  const out = [];
+  for (const w of metin.split(/[\s,;/]+/)) {
+    if (TAKI_KOD.test(w)) out.push(w);
+    else { const p = takiBol(w); if (p) out.push(...p); }
+  }
+  return out.join(',');
+}
 const DATE_RE = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/;
 
 function parsePast(html, atId) {
@@ -219,7 +240,7 @@ function parsePast(html, atId) {
       const kn = String(parseInt(g(iK), 10) || '');
       const key = kk ? 'k' + kk[1] : `${tarih}|${g(iH)}|${kn}|${msf}`;
       const tk = iTk >= 0 && iTk < td.length
-        ? clean($(td[iTk]).text()).split(/[\s,;/]+/).filter((w) => TAKI_KOD.test(w)).join(',')
+        ? takiListe(clean($(td[iTk]).text()))
         : '?';
       out.push({
         key, t: tarih, sh: g(iH), pist, msf,
@@ -290,7 +311,7 @@ function parseHist(html, atId) {
           y: [g(iH), g(iT)].filter(Boolean).join(' · '),
           st: g(iSt).replace(/[^\d]/g, ''),
           sh: g(iH), kn, v: video(g(iT)),
-          tk: iTk >= 0 && iTk < td.length ? clean($(td[iTk]).text()).split(/[\s,;/]+/).filter((w) => TAKI_KOD.test(w)).join(',') : '?',
+          tk: iTk >= 0 && iTk < td.length ? takiListe(clean($(td[iTk]).text())) : '?',
         };
       }
       if (!out.gal && iS >= 0 && /^1\b/.test(g(iS))) {
