@@ -9,8 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Önce önbellekli yeni Worker, ulaşılamazsa eski Worker
-const _backends = ['https://bulten.bilyoncu001.workers.dev', 'https://tiny-sunset-7f18.bilyoncu001.workers.dev'];
+// Worker kaldırıldı: TJK'ya doğrudan istek atılır
+const _tjkHeaders = {
+  'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Mobile Safari/537.36',
+  'Accept-Language': 'tr-TR,tr;q=0.9',
+};
 
 String isoToday() {
   final n = DateTime.now();
@@ -105,9 +108,7 @@ Future<String> _fetchRaw(String url, {int sec = 20, int retry = 2, bool fresh = 
   Object? last;
   for (var i = 0; i <= retry; i++) {
     try {
-      final b = _backends[i == 0 ? 0 : 1];
-      final ep = '$b?url=${Uri.encodeComponent(url)}${fresh ? '&_cb=${DateTime.now().millisecondsSinceEpoch}' : ''}';
-      final r = await http.get(Uri.parse(ep)).timeout(Duration(seconds: i == 0 && b == _backends[0] ? (sec < 12 ? sec : 12) : sec));
+      final r = await http.get(Uri.parse(url), headers: _tjkHeaders).timeout(Duration(seconds: sec));
       if (r.statusCode == 200) return utf8.decode(r.bodyBytes, allowMalformed: true);
       last = 'HTTP ${r.statusCode}';
       if (r.statusCode < 500) break;
@@ -1295,6 +1296,8 @@ Future<AtRow?> getAtGalop(String atId) {
   if (_galopMem.containsKey(atId)) return Future.value(_galopMem[atId]);
   final w = _galopWait[atId];
   if (w != null) return w.future;
+  return _getAtGalopEski(atId); // worker kaldırıldı
+  // ignore: dead_code
   final wy = _galopWorkerYok;
   if (wy != null && DateTime.now().difference(wy) < const Duration(minutes: 10)) return _getAtGalopEski(atId);
   final c = Completer<AtRow?>();
@@ -1495,6 +1498,8 @@ final Map<String, Future<List<AtPast>>> _pastBusy = {};
 /// Sunucudan (worker /atlar) birçok atın geçmiş sayfasını TEK istekle alıp bellek önbelleğine koyar.
 /// Başarısız olursa sessizce geçer; getAtPast normal yolla çeker.
 Future<void> atPastToplu(List<String> ids) async {
+  return; // worker kaldırıldı; atlar tek tek (getAtPast) çekilir
+  // ignore: dead_code
   final lst = [for (final id in ids) if (id.isNotEmpty && !atPastHazir(id)) id];
   if (lst.isEmpty) return;
   for (var i = 0; i < lst.length; i += 7) {
@@ -1511,7 +1516,7 @@ Future<void> _topluParca(List<String> p) {
   final k = p.join(',');
   return _topluBusy[k] = () async {
     try {
-      final r = await http.get(Uri.parse('${_backends[0]}/atlar?ids=${p.join(',')}')).timeout(const Duration(seconds: 25));
+      final r = await http.get(Uri.parse('https://invalid.invalid/atlar?ids=${p.join(',')}')).timeout(const Duration(seconds: 25));
       if (r.statusCode != 200) return;
       final m = jsonDecode(utf8.decode(r.bodyBytes, allowMalformed: true)) as Map;
       m.forEach((id, html) {
