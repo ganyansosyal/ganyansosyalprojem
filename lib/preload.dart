@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'athist_prefetch.dart';
 import 'auth_service.dart';
 import 'firebase_options.dart';
 import 'tjk.dart';
@@ -27,7 +28,12 @@ class Preload {
 
   static Future<void> start() {
     // koşu programı da splash sırasında gelsin; bitince ilerleme çubuğuna işlenir
-    TjkStore.i.ensureLoaded().whenComplete(() => _p(0.45));
+    TjkStore.i.ensureLoaded().whenComplete(() {
+      _p(0.45);
+      // Program gelince atların geçmişini arka planda önceden indir (Tahmin Yap gibi): Beraber koşular anında açılır
+      final cs = TjkStore.i.cities;
+      if (cs.isNotEmpty) AtHistPrefetch.i.start(cs.first.name, 1, galop: false, others: true);
+    });
     return _f ??= _run().whenComplete(() => _p(1.0));
   }
 

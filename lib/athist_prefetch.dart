@@ -30,7 +30,7 @@ class AtHistPrefetch {
   }
 
   /// Kuyruğu seçili hipodrom için yeniden kurar (seçili koşu önde) ve ekran boşalınca çekmeye başlar.
-  void start(String city, int firstRace) {
+  void start(String city, int firstRace, {bool galop = true, bool others = false}) {
     if (city.isEmpty) return;
     final rs = TjkStore.i.races(city).toList()
       ..sort((a, b) => a.no == firstRace ? -1 : (b.no == firstRace ? 1 : a.no.compareTo(b.no)));
@@ -43,11 +43,27 @@ class AtHistPrefetch {
         final id = h.atId;
         if (h.kosmaz || id.isEmpty) continue;
         // Galop sadece seçili koşu için hemen istenir (diğer koşular koşu açılınca gelir)
-        if (r.no == firstRace && !atGalopHazir(id) && !galopIds.contains(id)) galopIds.add(id);
-        if (atHistHazir(id) || !seen.add(id)) continue;
+        if (galop && r.no == firstRace && !atGalopHazir(id) && !galopIds.contains(id)) galopIds.add(id);
+        if ((atHistHazir(id) && atPastHazir(id)) || !seen.add(id)) continue;
         final f = _fail[id];
         if (f != null && now.difference(f) < const Duration(minutes: 10)) continue;
         ids.add(id);
+      }
+    }
+    // Diğer hipodromların atları da sıranın sonuna eklenir (Beraber koşular hepsinde hızlı açılsın)
+    if (others) {
+      for (final c in TjkStore.i.cities) {
+        if (c.name == city) continue;
+        for (final r in TjkStore.i.races(c.name)) {
+          for (final h in r.atlar) {
+            final id = h.atId;
+            if (h.kosmaz || id.isEmpty) continue;
+            if ((atHistHazir(id) && atPastHazir(id)) || !seen.add(id)) continue;
+            final f = _fail[id];
+            if (f != null && now.difference(f) < const Duration(minutes: 10)) continue;
+            ids.add(id);
+          }
+        }
       }
     }
     // Galop: tüm atlar için hemen, 6'şar atlık paketlerle (seçili koşu önde)
@@ -65,7 +81,7 @@ class AtHistPrefetch {
     if (_run) return;
     _run = true;
     try {
-      await _worker(); // tek tek: telefonu yormasın
+      await Future.wait([_worker(), _worker(), _worker()]); // 3 at aynı anda (TJK'yı yormadan hızlı)
     } finally {
       _run = false;
     }
@@ -87,13 +103,15 @@ class AtHistPrefetch {
       }
       if (_q.isEmpty) break;
       final id = _q.removeAt(0);
-      if (atHistHazir(id)) continue;
+      if (atHistHazir(id) && atPastHazir(id)) continue;
       try {
         await getAtHist(id).timeout(const Duration(seconds: 30));
+        // Aynı sayfa önbellekte: "Beraber koşular" için geçmiş koşuları da hazırla (anında açılsın)
+        await getAtPast(id).timeout(const Duration(seconds: 30));
       } catch (_) {
         _fail[id] = DateTime.now();
       }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     }
   }
 }

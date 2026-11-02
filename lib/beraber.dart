@@ -106,6 +106,9 @@ class _TogetherPageState extends State<TogetherPage> {
     final ck = '${s.iso}|$_city|$_no';
     final gen = ++_gen;
     _pending = null;
+    // Liste kayarken kaldırılırsa ScrollEnd hiç gelmez; "kaydırıyor" takılı kalıp liste hiç gösterilmezdi
+    _scrolling = false;
+    AtHistPrefetch.scrolling = false;
     final cached = _cache[ck];
     if (cached != null) {
       _busy.value = false;
@@ -150,6 +153,8 @@ class _TogetherPageState extends State<TogetherPage> {
     final g = _build(data);
     _cache[ck] = g;
     _busy.value = false;
+    // Bu koşu hazır: diğer koşuların atlarını arka planda önceden indir (aynı TJK sayfası, önbelleğe girer; sonraki koşular anında açılır)
+    AtHistPrefetch.i.start(_city, _no, galop: false);
     if (_idle) {
       _pending = g;
       _flush();
@@ -160,7 +165,8 @@ class _TogetherPageState extends State<TogetherPage> {
   }
 
   Future<void> _waitIdleFlush(int gen) async {
-    while (mounted && gen == _gen && !_idle) {
+    // En fazla ~3 sn bekle, sonra yine de göster (takılı kalmasın)
+    for (var i = 0; i < 12 && mounted && gen == _gen && !_idle; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
     if (mounted && gen == _gen) _flush();
