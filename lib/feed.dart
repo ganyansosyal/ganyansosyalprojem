@@ -889,7 +889,7 @@ class PostCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(children: [
               _act(c, liked ? Icons.favorite : Icons.favorite_border, '${p.likes}', liked ? c.red : c.mu, () { _toggleLike(p).catchError((e) { if (context.mounted) _toast(context, AuthService.errorText(e)); }); }),
-              const SizedBox(width: 16),
+              const SizedBox(width: 10),
               _act(c, Icons.chat_bubble_outline, '${p.comments.length}', c.mu, () => openComments(context, p.id, p.uid)),
               // Boş alanın tamamı takip butonuna ayrılır (yazı kesilmesin); buton sağa yaslı, Paylaş'a bitişik
               if (cp != null)
@@ -949,15 +949,19 @@ class PostCard extends StatelessWidget {
       });
 
   Widget _act(AppColors c, IconData ic, String n, Color col, VoidCallback onTap) {
+    // İkon ve sayı sabit kutularda: dolu/boş kalp ve 0/1 geçişinde hiçbir şey kaymaz
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
-          Icon(ic, size: 18, color: col),
-          const SizedBox(width: 5),
-          Text(n, style: jakarta(12.5, FontWeight.w700, col)),
+          SizedBox(width: 24, height: 26, child: Center(child: Icon(ic, size: 22, color: col))),
+          const SizedBox(width: 2),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 10),
+            child: Text(n, maxLines: 1, softWrap: false, style: jakarta(14, FontWeight.w700, col).copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+          ),
         ]),
       ),
     );
