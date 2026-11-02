@@ -1,0 +1,21 @@
+name: beraber-prep
+on:
+  schedule:
+    - cron: '0 4,7,10,13,16,19 * * *'   # Türkiye saati 07, 10, 13, 16, 19, 22
+  workflow_dispatch:
+concurrency:
+  group: beraber-prep
+  cancel-in-progress: false
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund firebase-admin cheerio
+      - run: node beraber-prep.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
