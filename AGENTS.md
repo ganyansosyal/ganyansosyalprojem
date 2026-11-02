@@ -1,6 +1,6 @@
 # GanyanSosyal – Kredi + AdMob + LevelPlay işi (nerede kaldık)
 
-Tarih: 2 Kasım 2026 (Worker kaldırma notları eklendi; Play/reklam notları 1 Kasım'dan). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
+Tarih: 2 Kasım 2026, 15:09 (cron-job.org zamanlaması kuruldu ve çalışıyor; Worker kaldırma notları 2 Kasım; Play/reklam notları 1 Kasım). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
 Kullanıcı tercihi: kısa, basit, adım adım anlat, kafası karışınca tek tek yönlendir (telefondan Play Console/Firebase kullanıyor, ekran görüntüsü atıyor). Kodu indirilebilir DOSYA olarak ver (tek tek), GitHub linki verme, sadece hangi klasöre konacağını yaz, zip verme (kullanıcı zip verirse bile çıktıyı tek tek dosya ver). Telefondan çalışıyor, ekran görüntüsü atar.
 
 ## HIZLI AÇILIŞ: "beraber-prep" sunucu işi (2 Kasım 2026, öğleden sonra) – NEREDE KALDIK
@@ -13,12 +13,41 @@ Kullanıcı tercihi: kısa, basit, adım adım anlat, kafası karışınca tek t
 - Kullanıcı `beraber-prep`'i elle çalıştırdı (06:22, 12 dk, yeşil); bugün 21/23 + yarın 23/24 koşu yazıldı (eksikler sonraki çalışmada tamamlanır). Videolar + `kn` + son .mjs/.dart sürümlerinin yüklenip yüklenmediği KESİN DEĞİL: kullanıcıya sor, gerekirse tüm dosyaları tekrar ver, sonra Actions > beraber-prep > Run workflow ve APK derle.
 - **Test edilemedi:** Sandbox'ta TJK'ya erişim yok, Dart/Flutter yok. Ayrıştırıcılar GitHub'da gerçek veriyle ilk kez denendi (çalıştı). Videolar, kn, galop belgeleri henüz uygulamada doğrulanmadı.
 
-**SORUN: GitHub zamanlanmış işleri ÇALIŞTIRMIYOR.** `beraber-prep` 07/10/13'te kendiliğinden hiç çalışmadı; `settle` (TR 13:00'dan beri 5 dk'da bir olmalı) da listede yok. Actions'ta "enable" uyarısı YOK. Sebep bilinmiyor. Cron dakikası `:17`'ye çekildi (yml verildi).
-**KESİN ÇÖZÜM (yapılıyor):** cron-job.org (ücretsiz) GitHub'a `workflow_dispatch` isteği atar.
-- İstek: `POST https://api.github.com/repos/ganyansosyal/ganyansosyalprojem/actions/workflows/beraber-prep.yml/dispatches`, body `{"ref":"main"}`, header'lar: `Content-Type: application/json`, `Authorization: Bearer <github_pat_...>`, `Accept: application/vnd.github+json`, `User-Agent: cron-job`. Başarı = HTTP 204.
-- Token: GitHub > Settings > Developer settings > Fine-grained token `cron`, sadece `ganyansosyal/ganyansosyalprojem`, Actions: Read and write (+ zorunlu Metadata read), son kullanma "No expiration" hata verdi, sonra olmuş. **Token kopyalanmamıştı (401 Unauthorized aldık)**, "Regenerate token" ile yeni kod alınıp cron-job.org'daki Authorization'a `Bearer ` + kod yapıştırılacak. Token'ı sohbete YAZMA.
-- cron-job.org: kullanıcı hesap açtı (console.cron-job.org). İlk iş formu sayfa yenilenince KAYBOLDU, baştan dolduruluyor: Title `beraber-prep`, URL yukarıdaki, "Every day at 7:05" (Europe/Istanbul), Advanced: POST, body, header'lar. Önce TEST RUN (204 beklenir), sonra CREATE. Sonra aynı işi KOPYALAYIP saatleri **10:05, 13:05, 16:05, 19:05, 22:05** yap (toplam 6 iş). "Custom" saat listesi telefonda karışık, "Every day at" ile 6 ayrı iş daha kolay.
-- Notlar: cron-job.org formunu kaydetmeden sekmeyi/sayfayı yenileme. Kullanıcı kısa cevap ve adım adım yönlendirme ister, "dosya verme" demişti ama bu .md'yi özellikle istedi.
+**SORUN (çözüldü): GitHub'ın kendi zamanlayıcısı (cron) işleri çalıştırmıyordu.** `beraber-prep` 07/10/13'te kendiliğinden hiç çalışmadı, `settle` de listede yoktu. Sebep bilinmiyor. `beraber-prep.yml` içindeki `schedule` (cron) satırı KALDIRILDI (kullanıcı kararı), yml'de sadece `workflow_dispatch` var. Tek tetikleyici cron-job.org. Not: aynı anda iki çalışma düşerse `concurrency` ayarı (cancel-in-progress: false) ikincisini sıraya alır.
+
+## ZAMANLAMA SİSTEMİ: cron-job.org -> GitHub (2 Kasım 2026, 15:09, ÇALIŞIYOR)
+**Nasıl çalışır:** cron-job.org (ücretsiz, bağışla yürüyen site) belirlenen saatlerde GitHub API'ye `workflow_dispatch` isteği atar, GitHub `beraber-prep` workflow'unu başlatır, iş TJK'dan veriyi çekip Firestore'a yazar. Başarı = HTTP 204.
+
+**Kullanılan servisler (hepsi ücretsiz):**
+- cron-job.org (console.cron-job.org), kullanıcının hesabı, TEK iş: `beraber-prep`
+- GitHub Actions: repo `ganyansosyal/ganyansosyalprojem` HERKESE AÇIK (public), bu yüzden Actions dakikası SINIRSIZ (private olsaydı ayda 2000 dk, iş ~12 dk sürüyor, yetmezdi)
+- GitHub token: Settings > Developer settings > Fine-grained tokens > `cron` (sadece bu repo, Actions: Read and write, Metadata read, süre: No expiration)
+
+**cron-job.org'daki işin ayarları (neyi nereye yazdık):**
+- Title: `beraber-prep`
+- URL: `https://api.github.com/repos/ganyansosyal/ganyansosyalprojem/actions/workflows/beraber-prep.yml/dispatches`
+- Enable job: açık. Save responses in job history: kapalı
+- Schedule: **Custom**, Minutes = 5, Hours = 1, 4, 7, 10, 13, 16, 19, 23 (3 saatte bir, :05). Crontab: `5 1,4,7,10,13,16,19,23 * * *`. Saat dilimi: Europe/Istanbul (iş bazında ayarlı). NOT: Saatler kullanıcı tarafından sonradan değiştirilebilir (son görülen plan 1, 6, 13, 18, 23 gibi günde 5 çalışma); güncel saat için cron-job.org > işin Edit'ine bak. Not: ilk plan 6 ayrı iş + saatler 7,10,13,16,19,22 idi, vazgeçildi, tek iş + Custom saatler kullanılıyor.
+- Advanced: Request method `POST`, Request body `{"ref":"main"}`
+- Headers (4 tane): `Content-Type: application/json`, `Accept: application/vnd.github+json`, `User-Agent: cron-job`, `Authorization: Bearer <github_pat_...>` (Bearer + boşluk + token). TOKEN'I BU DOSYAYA YAZMA, sohbete de yazma.
+- Test: TEST RUN 204 No Content verdi (14:50 ve 15:07). Sonraki çalışma 16:05.
+
+**SORUN ÇIKARSA NEREDEN DÜZELTİLİR:**
+- **İş hiç çalışmıyor / GitHub Actions'ta yeni satır yok:** cron-job.org > Cronjobs > işin kalem (Edit) simgesi > TEST RUN. Çıkan kodu oku: 204 = tamam (GitHub'da Actions > beraber-prep'e bak), diğerleri aşağıda.
+- **401 Unauthorized:** token yanlış/eksik yapışmış ya da silinmiş/yenilenmiş. GitHub > Settings > Developer settings > Fine-grained tokens > `cron` > Regenerate token, yeni kodu hemen kopyala (bir daha gösterilmez), cron-job.org > işi Edit > Advanced > Authorization değerini `Bearer ` + yeni token yap > SAVE. (Telefonda klavyenin üstündeki \"github_pat_...\" önerisine basınca yapışıyor.)
+- **404 Not Found:** URL yanlış ya da workflow dosyası adı değişmiş (`.github/workflows/beraber-prep.yml`) ya da token repoya yetkili değil.
+- **403:** token'da Actions: Read and write izni yok, yenisini bu izinle oluştur.
+- **422:** body yanlış (`{"ref":"main"}` olmalı) ya da workflow'da `workflow_dispatch:` tetikleyicisi yok ya da branch adı `main` değil.
+- **Saat değiştirmek:** cron-job.org > işin Edit'i > Common > Custom > Hours listesinde istediğin saatlere dokun (seçililer mavi), Minutes 5 kalsın, SAVE. Altta Crontab kutusunda sonucu görürsün.
+- **Token süresi dolarsa** (şu an No expiration): aynı Regenerate yolu.
+- **Workflow çalışıyor ama kırmızı:** GitHub > Actions > beraber-prep > çalışmaya gir, hata satırını al. Gerekirse `beraber-prep.mjs`, `FIREBASE_SERVICE_ACCOUNT` secret'ı ve Firestore kuralı (`beraber/{id}`) kontrol edilir.
+- `settle` iş akışı için de aynı yöntem gerekebilir (şu an cron-job.org'da yok, yml cron'una güvenilmiyor). Gerekirse aynı şekilde Clone'la (liste > kutucuk > ACTIONS > Clone) kopyalayıp URL'de `beraber-prep.yml` yerine `settle.yml` yap.
+
+**cron-job.org telefon notları (zaman kaybettirmesin):**
+- Formu KAYDETMEDEN sayfayı yenileme/başka sayfaya gitme: sıfırlanıyor. Önce işi oluşturup kaydet, sonra düzenle.
+- Header değer kutusundaki `<>` simgesi değişken menüsü (%cjo:unixtime% vb.), değeri göstermez, kullanma.
+- İş kopyalamak: tarayıcıyı Masaüstü sitesi moduna al, satırın kutucuğunu işaretle, altta ACTIONS > Clone. Kopya Inactive gelir, Edit'te Enable job'u aç.
+- Aynı işten iki tane kalırsa aynı saatte iki kez çalışır, fazlasını sil.
 
 ## Önceki durum notları (eski)
 ## Cloudflare Worker'lar KALDIRILDI (2 Kasım 2026) – TJK'ya doğrudan gidiliyor
