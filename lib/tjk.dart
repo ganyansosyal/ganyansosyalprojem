@@ -1684,11 +1684,11 @@ List<Map<String, String>> _atPastIso(List<String> a) {
     final iJk = ix(RegExp(r'jokey'));
     final iG = ix(RegExp(r'^gny|ganyan'));
     final iK = ix(RegExp(r'^k\.?\s*no'));
-    final iKg = ix(RegExp(r'siklet|^kg'));
+    final iKg = ix(RegExp(r's[ıi]klet|^kg'));
     final iHp = ix(RegExp(r'^hp'));
     final iTk = ix(RegExp(r'tak[ıi]|ekipman'));
     if (iT < 0) continue;
-    for (var i = hi + 1; i < rows.length && out.length < 40; i++) {
+    for (var i = hi + 1; i < rows.length && out.length < 150; i++) {
       final td = rows[i].querySelectorAll('td');
       if (td.length <= iT) continue;
       String g(int idx) => idx >= 0 && idx < td.length ? _clean(td[idx].text) : '';

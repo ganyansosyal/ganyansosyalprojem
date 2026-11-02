@@ -86,7 +86,7 @@ class _TogetherPageState extends State<TogetherPage> {
         if (e.value.map((r) => r.name).toSet().length >= 2)
           _Grp(e.key, e.value..sort((a, b) => (int.tryParse(a.p.s) ?? 99).compareTo(int.tryParse(b.p.s) ?? 99)))
     ]..sort((a, b) => _date(b.f.t).compareTo(_date(a.f.t)));
-    return g.length > 12 ? g.sublist(0, 12) : g;
+    return g.length > 80 ? g.sublist(0, 80) : g;
   }
 
   /// Listeyi günceller; kaydırma/dokunma varsa bekletir (titreme olmasın), en fazla 0,5 sn'de bir.
