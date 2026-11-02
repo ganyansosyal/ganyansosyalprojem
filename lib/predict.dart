@@ -1631,6 +1631,26 @@ class _TakiRow extends StatefulWidget {
   State<_TakiRow> createState() => _TakiRowState();
 }
 
+const _takiAtomlar = ['SKG', 'GKR', 'KG', 'SK', 'DB', 'ÖG', 'K'];
+
+/// "DBSK" -> [DB, SK]; "KDB" -> [K, DB]. Parçalanamazsa kodun kendisi döner.
+List<String> _takiParcala(String k) {
+  List<String>? bol(String s) {
+    if (s.isEmpty) return <String>[];
+    for (final a in _takiAtomlar) {
+      if (s.startsWith(a)) {
+        final r = bol(s.substring(a.length));
+        if (r != null) return [a, ...r];
+      }
+    }
+    return null;
+  }
+
+  return bol(k) ?? [k];
+}
+
+Set<String> _takiAtomSet(Iterable<String> ks) => {for (final k in ks) ..._takiParcala(k)};
+
 class _TakiRowState extends State<_TakiRow> {
   Set<String>? _prev; // null = son koşunun takısı bilinmiyor
   int _tries = 0;
@@ -1709,16 +1729,18 @@ class _TakiRowState extends State<_TakiRow> {
   @override
   Widget build(BuildContext context) {
     final cur = widget.h.taki.take(4).toList();
-    final curK = cur.map((e) => e.k).toSet();
     final prev = _prev;
+    // "DB SK" ile "DBSK" aynı şey: karşılaştırma parçalanmış (atom) kodlarla yapılır
+    final curAtoms = _takiAtomSet(cur.map((e) => e.k));
+    final prevAtoms = prev == null ? <String>{} : _takiAtomSet(prev);
     final kids = <Widget>[];
     for (final t in cur) {
-      final st = prev != null && !prev.contains(t.k) ? 'new' : 'same';
-      kids.add(_chip(context, t.k, t.a, st));
+      final yeni = prev != null && _takiParcala(t.k).any((a) => !prevAtoms.contains(a));
+      kids.add(_chip(context, t.k, t.a, yeni ? 'new' : 'same'));
     }
     if (prev != null) {
       for (final k in prev) {
-        if (!curK.contains(k)) kids.add(_chip(context, k, '', 'old'));
+        if (_takiParcala(k).any((a) => !curAtoms.contains(a))) kids.add(_chip(context, k, '', 'old'));
       }
       if (cur.isEmpty && prev.isNotEmpty) kids.add(_chip(context, 'Takısız', '', 'none'));
     }

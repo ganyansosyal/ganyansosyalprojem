@@ -387,6 +387,20 @@ void _takiKaydet() {
 final _takiKod = RegExp(r'^[A-ZÇĞİÖŞÜ]{1,4}$');
 const _takiBilinen = ['KGK', 'KDB', 'ÖDB', 'SKG', 'GKR', 'DB', 'KG', 'SK', 'ÖG', 'K'];
 
+const _takiAtomlar = ['SKG', 'GKR', 'KG', 'SK', 'DB', 'ÖG', 'K'];
+
+/// "KGDBSK" -> [KG, DB, SK]; tamamen bilinen takılara bölünemezse null.
+List<String>? _takiBol(String s) {
+  if (s.isEmpty) return <String>[];
+  for (final a in _takiAtomlar) {
+    if (s.startsWith(a)) {
+      final r = _takiBol(s.substring(a.length));
+      if (r != null) return [a, ...r];
+    }
+  }
+  return null;
+}
+
 List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element? atLinki) {
   final out = <({String k, String a})>[];
   void ekle(String k, String a) {
@@ -445,7 +459,16 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
         break;
       }
     }
-    final kodlar = _clean(hucre.text).split(RegExp(r'[\s,;/]+')).where((w) => _takiKod.hasMatch(w)).toList();
+    final kodlar = <String>[];
+    for (final w in _clean(hucre.text).split(RegExp(r'[\s,;/]+'))) {
+      if (_takiKod.hasMatch(w)) {
+        kodlar.add(w);
+      } else {
+        // "KGDBSK" gibi birleşik yazılmış kodlar: bilinen takılara böl
+        final p = _takiBol(w);
+        if (p != null) kodlar.addAll(p);
+      }
+    }
     for (final w in kodlar) {
       ekle(w, kodlar.length == 1 ? hta : '');
     }
