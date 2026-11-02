@@ -44,6 +44,31 @@ Future<void> showRaceFilm(
   );
 }
 
+/// Videoyu doğrudan YATAY TAM EKRANDA açar (alt panel yok). Kullanıcı kendisi kapatır.
+/// Video hazır olunca açılır; hata olursa istisna fırlatır (çağıran yer mesaj gösterir).
+Future<void> showFullVideo(BuildContext context, String url) async {
+  final v = VideoPlayerController.networkUrl(Uri.parse(url));
+  try {
+    await v.initialize();
+  } catch (e) {
+    await v.dispose();
+    rethrow;
+  }
+  if (!context.mounted) {
+    await v.dispose();
+    return;
+  }
+  await v.play();
+  try {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => _FullVideo(controller: v)));
+  } finally {
+    await v.pause();
+    // Kapanış animasyonu bitmeden denetleyici silinmesin
+    await Future.delayed(const Duration(milliseconds: 600));
+    await v.dispose();
+  }
+}
+
 class _FilmSheet extends StatefulWidget {
   final String url, city, dateLabel;
   final int race;

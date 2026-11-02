@@ -1031,13 +1031,16 @@ Future<void> _playIdman(Horse h) async {
   messenger.showSnackBar(const SnackBar(content: Text('Video yükleniyor…'), duration: Duration(seconds: 8)));
   try {
     final mp4 = await getIdmanMp4(h, s.iso);
-    messenger.hideCurrentSnackBar();
     if (!mounted) return;
     if (mp4 == null) {
+      messenger.hideCurrentSnackBar();
       _toast('İdman videosu bulunamadı.');
       return;
     }
-    await showRaceFilm(context, url: mp4, race: _race, city: _city, dateLabel: '', rows: const [], title: h.name, subtitle: 'İdman videosu', badge: '${h.no}');
+    // "Video yükleniyor…" yazısı video hazırlanırken görünür kalır, tam ekran açılınca kapanır
+    final f = showFullVideo(context, mp4);
+    f.whenComplete(() => messenger.hideCurrentSnackBar());
+    await f;
   } catch (_) {
     messenger.hideCurrentSnackBar();
     _toast('İdman videosu açılamadı.');
