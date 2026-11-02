@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'athist_prefetch.dart';
 import 'film.dart';
+import 'firebase_options.dart' show firebaseReady;
 import 'shell.dart' show IconBox;
 import 'theme.dart';
 import 'tjk.dart';
@@ -45,6 +47,7 @@ class _TogetherPageState extends State<TogetherPage> {
   // Liste ve yükleniyor bilgisi ayrı dinlenir: sadece liste alanı yeniden çizilir, üst çubuklar değil
   final _groups = ValueNotifier<List<_Grp>?>(null);
   final _busy = ValueNotifier<bool>(false);
+  final _prog = ValueNotifier<String>(''); // "6/14" gibi yükleme ilerlemesi
   // Tahmin Yap ile aynı kural: parmak ekrandayken / kayarken ağır iş ve liste güncellemesi yok
   DateTime _touch = DateTime.fromMillisecondsSinceEpoch(0);
   bool _scrolling = false;
@@ -56,7 +59,7 @@ class _TogetherPageState extends State<TogetherPage> {
     super.initState();
     if (s.cities.isNotEmpty) _city = s.cities.first.name;
     // Sayfa açılış animasyonu bitsin, sonra ağır işe başla
-    Future.delayed(const Duration(milliseconds: 150), () {
+    Future.delayed(const Duration(milliseconds: 60), () {
       if (mounted) _load();
     });
   }
@@ -67,6 +70,7 @@ class _TogetherPageState extends State<TogetherPage> {
     AtHistPrefetch.scrolling = false;
     _groups.dispose();
     _busy.dispose();
+    _prog.dispose();
     super.dispose();
   }
 
@@ -102,6 +106,48 @@ class _TogetherPageState extends State<TogetherPage> {
     _groups.value = g;
   }
 
+  /// GitHub'ın önceden hazırladığı sonuç (beraber/{tarih}_{şehirId}_{koşu}). Yoksa/erişilemezse null → telefonda hesaplanır.
+  Future<List<_Grp>?> _fromServer(List<Horse> hs) async {
+    if (!firebaseReady) return null;
+    try {
+      final city = s.cities.firstWhere((c) => c.name == _city);
+      final ref = FirebaseFirestore.instance.collection('beraber').doc('${s.iso}_${city.id}_$_no');
+      DocumentSnapshot<Map<String, dynamic>> d;
+      try {
+        d = await ref.get(const GetOptions(source: Source.cache));
+        final ts = d.data()?['ts'];
+        // Telefondaki kopya 3 saatten eskiyse sunucudan yenisine bak
+        if (!d.exists || ts is! Timestamp || DateTime.now().difference(ts.toDate()) > const Duration(hours: 3)) {
+          final old = d;
+          try {
+            d = await ref.get().timeout(const Duration(seconds: 4));
+          } catch (_) {
+            d = old;
+          }
+        }
+      } catch (_) {
+        d = await ref.get().timeout(const Duration(seconds: 5));
+      }
+      if (!d.exists) return null;
+      final names = {for (final h in hs) h.atId: h.name};
+      final out = <_Grp>[];
+      for (final g in (d.data()?['groups'] as List? ?? const [])) {
+        if (g is! Map) continue;
+        final rows = <_Row>[];
+        for (final r in (g['rows'] as List? ?? const [])) {
+          if (r is! Map) continue;
+          final n = names['${r['id']}'];
+          if (n == null) continue;
+          rows.add(_Row(n, AtPast.fromJson(r)));
+        }
+        if (rows.map((r) => r.name).toSet().length >= 2) out.add(_Grp('${g['key']}', rows));
+      }
+      return out;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _load() async {
     final ck = '${s.iso}|$_city|$_no';
     final gen = ++_gen;
@@ -124,9 +170,20 @@ class _TogetherPageState extends State<TogetherPage> {
     _busy.value = true;
     _groups.value = null;
     final hs = [for (final h in race.atlar) if (!h.kosmaz && h.atId.isNotEmpty) h];
+    // Hazır sonuç varsa tek okumayla göster (TJK'ya hiç gitmeden)
+    final srv = await _fromServer(hs);
+    if (!mounted || gen != _gen) return;
+    if (srv != null) {
+      _cache[ck] = srv;
+      _busy.value = false;
+      _groups.value = srv;
+      AtHistPrefetch.i.start(_city, _no, galop: false);
+      return;
+    }
     final data = <String, List<AtPast>>{};
-    // Worker yok: tüm atlar (en fazla 14) aynı anda doğrudan TJK'dan çekilir
-    var next = 0;
+    // Önce telefondaki kayıtlar (anında), eksikler TJK'dan hep birlikte çekilir (en fazla 14 at aynı anda)
+    var next = 0, done = 0;
+    _prog.value = '0/${hs.length}';
     Future<void> worker() async {
       while (true) {
         if (!mounted || gen != _gen) return;
@@ -143,8 +200,9 @@ class _TogetherPageState extends State<TogetherPage> {
           data[h.name] = const [];
         }
         if (!mounted || gen != _gen) return;
+        _prog.value = '${++done}/${hs.length}';
         final g = _build(data);
-        if (g.isNotEmpty) _publish(g);
+        if (g.isNotEmpty) _publish(g, force: done == 1 || done == hs.length);
       }
     }
 
@@ -186,13 +244,23 @@ class _TogetherPageState extends State<TogetherPage> {
       );
 
   Widget _list(AppColors c, List<_Grp>? g, bool busy) {
-    if (g == null) return Center(child: CircularProgressIndicator(color: c.ac));
+    Widget loading() => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            CircularProgressIndicator(color: c.ac),
+            const SizedBox(height: 14),
+            ValueListenableBuilder<String>(
+              valueListenable: _prog,
+              builder: (_, p, __) => Text(p.isEmpty ? 'Yükleniyor…' : 'Atlar yükleniyor $p', style: jakarta(13, FontWeight.w700, c.mu)),
+            ),
+          ]),
+        );
+    if (g == null) return loading();
     if (g.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: busy
-              ? CircularProgressIndicator(color: c.ac)
+              ? loading()
               : Text('Bu koşuda, atların daha önce beraber koştuğu bir koşu bulunamadı.', textAlign: TextAlign.center, style: jakarta(14, FontWeight.w600, c.mu)),
         ),
       );

@@ -1488,6 +1488,16 @@ class AtPast {
     this.tk = '?',
     this.v = '',
   });
+
+  Map<String, String> toJson() => {'key': key, 't': t, 'sh': sh, 'pist': pist, 'msf': msf, 's': s, 'j': j, 'kg': kg, 'd': d, 'hp': hp, 'g': g, 'tk': tk, 'v': v};
+
+  factory AtPast.fromJson(Map m) {
+    String x(String k, [String d = '']) => '${m[k] ?? d}';
+    return AtPast(
+      key: x('key'), t: x('t'), sh: x('sh'), pist: x('pist'), msf: x('msf'), s: x('s'), j: x('j'), kg: x('kg'),
+      d: x('d'), hp: x('hp'), g: x('g'), tk: x('tk', '?'), v: x('v'),
+    );
+  }
 }
 
 final Map<String, List<AtPast>> _pastMem = {};
@@ -1537,18 +1547,43 @@ Future<List<AtPast>> getAtPast(String atId) {
   return _pastBusy[atId] ??= _getAtPast(atId).whenComplete(() => _pastBusy.remove(atId));
 }
 
+/// Atın geçmişi telefonda küçük bir JSON dosyası olarak saklanır (HTML'i yeniden ayrıştırmak gerekmez → uygulama kapatılıp açılsa da anında gelir).
+/// 12 saatten eskiyse yine hemen eski veri gösterilir, yenisi arka planda çekilir (stale-while-revalidate).
+Future<File?> _pastFile(String atId) async {
+  final f = await _diskFile('past-v2|$atId');
+  return f == null ? null : File('${f.path}.json');
+}
+
 Future<List<AtPast>> _getAtPast(String atId) async {
+  final pf = await _pastFile(atId);
+  if (pf != null) {
+    try {
+      if (await pf.exists()) {
+        final raw = jsonDecode(await pf.readAsString());
+        if (raw is List && raw.isNotEmpty) {
+          final r = [for (final m in raw) if (m is Map) AtPast.fromJson(m)];
+          if (r.isNotEmpty) {
+            _pastMem[atId] = r;
+            final age = DateTime.now().difference(await pf.lastModified()).inSeconds;
+            if (age >= 43200) unawaited(_fetchAtPast(atId, pf).then((_) {}, onError: (Object _) {}));
+            return r;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  return _fetchAtPast(atId, pf);
+}
+
+Future<List<AtPast>> _fetchAtPast(String atId, File? pf) async {
   final url = 'https://www.tjk.org/TR/yarissever/Query/ConnectedPage/AtKosuBilgileri?1=1&QueryParameter_AtId=${Uri.encodeComponent(atId)}';
-  final html = await _fetch(url, sec: 25, retry: 1, ttl: 600, disk: 43200, fresh: false);
+  final html = await _fetch(url, sec: 20, retry: 1, ttl: 600, disk: 43200, fresh: false);
   final l = await compute(_atPastIso, <String>[html, atId]);
-  final r = [
-    for (final m in l)
-      AtPast(
-        key: m['key'] ?? '', t: m['t'] ?? '', sh: m['sh'] ?? '', pist: m['pist'] ?? '', msf: m['msf'] ?? '', s: m['s'] ?? '',
-        j: m['j'] ?? '', kg: m['kg'] ?? '', d: m['d'] ?? '', hp: m['hp'] ?? '', g: m['g'] ?? '', tk: m['tk'] ?? '?', v: m['v'] ?? '',
-      )
-  ];
+  final r = [for (final m in l) AtPast.fromJson(m)];
   _pastMem[atId] = r;
+  if (pf != null && r.isNotEmpty) {
+    unawaited(pf.writeAsString(jsonEncode([for (final e in r) e.toJson()])).then((_) {}, onError: (Object _) {}));
+  }
   return r;
 }
 

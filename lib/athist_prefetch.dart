@@ -81,7 +81,7 @@ class AtHistPrefetch {
     if (_run) return;
     _run = true;
     try {
-      await Future.wait([_worker(), _worker(), _worker()]); // 3 at aynı anda (TJK'yı yormadan hızlı)
+      await Future.wait([for (var i = 0; i < 5; i++) _worker()]); // 5 at aynı anda
     } finally {
       _run = false;
     }
@@ -105,13 +105,13 @@ class AtHistPrefetch {
       final id = _q.removeAt(0);
       if (atHistHazir(id) && atPastHazir(id)) continue;
       try {
-        await getAtHist(id).timeout(const Duration(seconds: 30));
-        // Aynı sayfa önbellekte: "Beraber koşular" için geçmiş koşuları da hazırla (anında açılsın)
+        // Önce "Beraber koşular" için geçmiş koşular (sayfa bir kez iner, telefona kaydedilir), sonra son yarış/galibiyet özeti
         await getAtPast(id).timeout(const Duration(seconds: 30));
+        await getAtHist(id).timeout(const Duration(seconds: 30));
       } catch (_) {
         _fail[id] = DateTime.now();
       }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
     }
   }
 }
