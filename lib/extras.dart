@@ -31,7 +31,7 @@ Widget _scaffold(BuildContext context, String title, Widget body) {
 Widget _card(AppColors c, String title, List<Widget> rows, {String? note}) => Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.ln)),
+      decoration: softCard(c, radius: 20.0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: jakarta(16, FontWeight.w800, c.tx)),
         const SizedBox(height: 8),

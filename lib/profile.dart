@@ -603,7 +603,7 @@ Widget build(BuildContext context) {
                     const SizedBox(height: 18),
                     Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+                      decoration: softCard(c, radius: 16.0),
                       child: Row(
                         children: [
                           _tabBtn(c, 'k', 'Kuponlar'),
@@ -640,7 +640,7 @@ Widget build(BuildContext context) {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.ln)),
+          decoration: softCard(c, radius: 14.0),
           child: Column(
             children: [
               Text(v, style: jakarta(16, FontWeight.w800, c.ac)),
@@ -803,7 +803,7 @@ class _PeopleSheetState extends State<_PeopleSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+              decoration: softCard(c, radius: 16.0),
               child: Row(children: [
                 _tabBtn(c, 0, '${_cnt(widget.followers)} Takipçi'),
                 _tabBtn(c, 1, '${_cnt(widget.following)} Takip'),

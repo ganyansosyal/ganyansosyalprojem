@@ -200,7 +200,7 @@ class _ShareCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
             child: Container(
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
+              decoration: softCard(c, radius: 18.0),
               child: Stack(children: [
                 Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: stripe)),
                 Padding(

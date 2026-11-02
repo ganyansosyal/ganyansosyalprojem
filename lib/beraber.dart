@@ -387,7 +387,7 @@ class _GroupCardState extends State<_GroupCard> {
     final pm = [f.msf.isEmpty ? '' : '${f.msf}m', f.pist].where((e) => e.isNotEmpty).join(' ');
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(22), border: Border.all(color: c.ln)),
+      decoration: softCard(c, radius: 22.0),
       child: Column(children: [
         GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -398,7 +398,7 @@ class _GroupCardState extends State<_GroupCard> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(f.t, style: jakarta(14, FontWeight.w800, c.tx)),
-                  Text([f.sh, pm].where((e) => e.isNotEmpty).join(' · '), style: jakarta(12.5, FontWeight.w600, c.mu)),
+                  Text([f.sh, pm].where((e) => e.isNotEmpty).join(' · '), style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
                 ]),
               ),
               Container(
@@ -461,7 +461,7 @@ class _RowTile extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(r.name, style: jakarta(14.5, FontWeight.w800, c.tx)),
-            if (sub.isNotEmpty) Text(sub, style: jakarta(12.5, FontWeight.w600, c.mu)),
+            if (sub.isNotEmpty) Text(sub, style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
             if (tk.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 5),
@@ -478,7 +478,7 @@ class _RowTile extends StatelessWidget {
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(p.d, style: jakarta(13.5, FontWeight.w800, c.tx)),
-          if (p.g.isNotEmpty) Text('Gny ${p.g}', style: jakarta(12, FontWeight.w600, c.mu)),
+          if (p.g.isNotEmpty) Text('Gny ${p.g}', style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
         ]),
       ]),
     );

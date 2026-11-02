@@ -386,7 +386,7 @@ class FollowedHorsesPage extends StatelessWidget {
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                        decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.ln)),
+                        decoration: softCard(c, radius: 20.0),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
                             Container(

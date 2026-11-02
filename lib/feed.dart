@@ -694,7 +694,7 @@ class _NextRaceBarState extends State<_NextRaceBar> {
           const SizedBox(width: 8),
           Expanded(child: Text('${n.city} ${n.r.no}. koşu · ${n.r.saat}', maxLines: 1, overflow: TextOverflow.ellipsis, style: jakarta(13, FontWeight.w800, c.tx))),
           const SizedBox(width: 6),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(12), border: Border.all(color: c.ln)), child: Text(_left(left), style: jakarta(12, FontWeight.w800, c.gold))),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: softCard(c, radius: 12.0), child: Text(_left(left), style: jakarta(12, FontWeight.w800, c.gold))),
           const SizedBox(width: 4),
           Icon(Icons.chevron_right, color: c.mu, size: 18),
         ]),
@@ -753,7 +753,7 @@ class PostCard extends StatelessWidget {
                   child: Container(
                     height: 50,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln, width: 1.4)),
+                    decoration: softCard(c, radius: 16.0),
                     child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
                   ),
                 ),
@@ -792,7 +792,7 @@ class PostCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+      decoration: softCard(c, radius: 16.0),
       child: Stack(children: [
         if (stripe != null) Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: stripe)),
         Padding(
@@ -1206,7 +1206,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.only(left: 14, right: 4),
-                    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(24), border: Border.all(color: c.ln)),
+                    decoration: softCard(c, radius: 24.0),
                     child: Row(children: [
                       Expanded(
                         child: TextField(

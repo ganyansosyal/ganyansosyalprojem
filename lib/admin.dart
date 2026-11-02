@@ -338,7 +338,7 @@ class _BannedScreenState extends State<BannedScreen> {
               constraints: const BoxConstraints(maxWidth: 400),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
-                decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(26), border: Border.all(color: c.ln)),
+                decoration: softCard(c, radius: 26.0),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Container(
                     width: 78,
@@ -353,7 +353,7 @@ class _BannedScreenState extends State<BannedScreen> {
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+                    decoration: softCard(c, radius: 16.0),
                     child: Column(children: [
                       row('Durum', 'Askıda', vc: c.red),
                       if (!perm) row('Kalan süre', _countdown(_i(b['until']))),
@@ -943,7 +943,7 @@ class _AdminSheetState extends State<_AdminSheet> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+      decoration: softCard(c, radius: 16.0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Text('📢 Duyuru', style: jakarta(14, FontWeight.w800, c.tx)),
@@ -1206,7 +1206,7 @@ class _AdminSheetState extends State<_AdminSheet> {
     Widget box(String n, String l, {Color? col}) => Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.ln)),
+            decoration: softCard(c, radius: 14.0),
             child: Column(children: [
               Text(n, style: jakarta(22, FontWeight.w800, col ?? c.tx)),
               Text(l, style: jakarta(12, FontWeight.w700, c.mu)),
@@ -1518,7 +1518,7 @@ class _GiftDialogState extends State<_GiftDialog> {
                     child: Container(
                       height: 50,
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln, width: 1.4)),
+                      decoration: softCard(c, radius: 16.0),
                       child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
                     ),
                   ),

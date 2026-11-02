@@ -166,7 +166,7 @@ class _UserSearchPageState extends State<UserSearchPage> {
                   child: Container(
                     height: 44,
                     padding: const EdgeInsets.only(left: 12),
-                    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.ln)),
+                    decoration: softCard(c, radius: 14.0),
                     child: Row(children: [
                       Icon(Icons.search, size: 20, color: c.mu),
                       const SizedBox(width: 8),

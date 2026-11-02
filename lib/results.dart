@@ -137,7 +137,7 @@ class _ResultsPageState extends State<ResultsPage> {
         children: [
         Container(
           padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+          decoration: softCard(c, radius: 16.0),
           child: Row(children: [
             _arrow(c, Icons.chevron_left, () => _day(-1)),
             Expanded(child: Column(children: [
@@ -199,7 +199,7 @@ class _ResultsPageState extends State<ResultsPage> {
   Widget _box(AppColors c, List<Color> k, String a, String b, List<Widget> rows) => RepaintBoundary(
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.ln)),
+          decoration: softCard(c, radius: 14.0),
           child: Column(children: [_head(k, a, b), ...rows]),
         ),
       );

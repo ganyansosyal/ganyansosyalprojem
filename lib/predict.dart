@@ -674,7 +674,7 @@ Widget build(BuildContext context) {
 Widget _dateBar(AppColors c) {
   return Container(
     padding: const EdgeInsets.all(6),
-    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+    decoration: softCard(c, radius: 16.0),
     child: Row(children: [
       _arrow(c, Icons.chevron_left, () => _day(-1)),
       Expanded(
@@ -775,7 +775,7 @@ Widget _typeBox(AppColors c) {
   final ord = (st.length > 1 && _lr.isNotEmpty && st.contains(_lr.first)) ? '${st.indexOf(_lr.first) + 1}. ' : '';
   return Container(
     padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: BoxDecoration(color: c.ac.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ac)),
+    decoration: softCard(c),
     child: Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -902,7 +902,7 @@ Widget _raceResult(AppColors c, Race r) {
   return Container(
     width: double.infinity,
     margin: const EdgeInsets.only(top: 8),
-    decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+    decoration: softCard(c, radius: 16.0),
     clipBehavior: Clip.antiAlias,
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (rr.sira.isNotEmpty) ...[
@@ -978,13 +978,13 @@ Widget _raceCard(AppColors c, Race r) {
   return Container(
     width: double.infinity,
     padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: c.ac.withAlpha(14), borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+    decoration: softCard(c),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('$_city ${r.no}. Koşu • ${r.saat}', style: jakarta(15, FontWeight.w800, c.tx)),
-      if (r.bilgi.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 2), child: Text(r.bilgi, style: jakarta(11, FontWeight.w500, c.mu))),
-      Text('${r.atlar.length} at', style: jakarta(11, FontWeight.w500, c.mu)),
+      if (r.bilgi.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 2), child: Text(r.bilgi, style: jakarta(13.5, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!))),
+      Padding(padding: const EdgeInsets.only(top: 2), child: Text('${r.atlar.length} at', style: jakarta(13.5, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!))),
       if (done)
-        Padding(padding: const EdgeInsets.only(top: 4), child: Text('Koşu başladı / bitti · seçime kapalı', style: jakarta(10.5, FontWeight.w800, c.red))),
+        Padding(padding: const EdgeInsets.only(top: 4), child: Text('Koşu başladı / bitti · seçime kapalı', style: jakarta(12.5, FontWeight.w800, c.red))),
       // TJK'daki gibi: "1. ÇİFTE, 7'Lİ PLASE, ... bu koşudan başlar, GANYAN, İKİLİ, ..."
       Builder(builder: (_) {
         final bs = baslarYazi(_city, r.no);

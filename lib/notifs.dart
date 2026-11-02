@@ -222,7 +222,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
+                  decoration: softCard(c, radius: 18.0),
                   child: Row(children: [
                     _NotifAvatar(uid: n['type'] == 'horse' ? '' : (n['from'] ?? '').toString(), name: (n['fn'] ?? '').toString(), type: (n['type'] ?? '').toString()),
                     const SizedBox(width: 12),

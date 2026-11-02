@@ -533,7 +533,7 @@ Future<void> confirmSignOut(BuildContext context) async {
                 child: Container(
                   height: 50,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln, width: 1.4)),
+                  decoration: softCard(c, radius: 16.0),
                   child: Text('Vazgeç', style: jakarta(15, FontWeight.w800, c.tx)),
                 ),
               ),

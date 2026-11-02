@@ -230,7 +230,7 @@ class _ShopPageState extends State<ShopPage> {
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 22, 12, 12),
-        decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln, width: 1.5)),
+        decoration: softCard(c, radius: 18.0),
         child: Row(children: [
           Padding(padding: const EdgeInsets.fromLTRB(14, 0, 10, 0), child: _avatar(f, 52)),
           const SizedBox(width: 6),
@@ -352,7 +352,7 @@ class _ShopPageState extends State<ShopPage> {
                 const SizedBox(height: 12),
                 Container(
                   clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(18), border: Border.all(color: c.ln)),
+                  decoration: softCard(c, radius: 18.0),
                   child: Column(children: [
                     Container(
                       height: 64,
@@ -389,7 +389,7 @@ class _ShopPageState extends State<ShopPage> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.fromLTRB(14, 24, 12, 12),
-                  decoration: BoxDecoration(color: c.sf, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+                  decoration: softCard(c, radius: 16.0),
                   child: Row(children: [
                     Padding(padding: const EdgeInsets.only(left: 6, right: 6), child: Avatar(profile: me.copyWith(frame: f.id), size: 40)),
                     const SizedBox(width: 8),

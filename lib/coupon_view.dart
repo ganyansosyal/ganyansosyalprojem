@@ -307,7 +307,7 @@ class CouponView extends StatelessWidget {
 
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.ln)),
+      decoration: softCard(c, radius: 16.0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 9, 12, 9),

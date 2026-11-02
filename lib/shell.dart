@@ -496,7 +496,7 @@ class AppDrawer extends StatelessWidget {
               const Spacer(),
               Text('Hesabın ve paylaşımların bulutta saklanır.',
                   textAlign: TextAlign.center,
-                  style: jakarta(13, FontWeight.w500, c.mu)),
+                  style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
               const SizedBox(height: 10),
               Divider(height: 1, color: c.ln),
               const SizedBox(height: 10),
