@@ -441,6 +441,16 @@ class AppDrawer extends StatelessWidget {
               ),
               ),
               const SizedBox(height: 14),
+              _GreenDrawerCard(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
+              }),
+              const SizedBox(height: 10),
+              _GreenDrawerCard(icon: Icons.groups_outlined, label: 'Beraber koşular', onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TogetherPage()));
+              }),
+              const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
                   color: c.sf,
@@ -457,16 +467,6 @@ class AppDrawer extends StatelessWidget {
                       }),
                       Divider(height: 1, color: c.ln),
                     ],
-                    _DrawerRow(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
-                    }),
-                    Divider(height: 1, color: c.ln),
-                    _DrawerRow(icon: Icons.groups_outlined, label: 'Beraber koşular', onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TogetherPage()));
-                    }),
-                    Divider(height: 1, color: c.ln),
                     _DrawerRow(icon: Icons.menu_book_outlined, label: 'Kurallar', onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RulesPage()));
@@ -553,6 +553,40 @@ class _DrawerRow extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(child: Text(label, style: jakarta(16, FontWeight.w700, c.tx))),
             if (trailing != null) trailing!,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GreenDrawerCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _GreenDrawerCard({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(colors: [Color(0xFF14B27D), Color(0xFF0E9F73)]),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(color: Color(0x33FFFFFF), shape: BoxShape.circle),
+              child: Icon(icon, size: 22, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Text(label, style: jakarta(17, FontWeight.w800, Colors.white))),
+            const Icon(Icons.chevron_right, color: Colors.white),
           ],
         ),
       ),
