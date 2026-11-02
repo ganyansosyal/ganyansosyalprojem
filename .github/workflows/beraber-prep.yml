@@ -1,7 +1,5 @@
 name: beraber-prep
 on:
-  schedule:
-    - cron: '0 4,7,10,13,16,19 * * *'   # Türkiye saati 07, 10, 13, 16, 19, 22
   workflow_dispatch:
 concurrency:
   group: beraber-prep
