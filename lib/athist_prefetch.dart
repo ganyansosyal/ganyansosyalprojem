@@ -30,8 +30,24 @@ class AtHistPrefetch {
   }
 
   /// Kuyruğu seçili hipodrom için yeniden kurar (seçili koşu önde) ve ekran boşalınca çekmeye başlar.
+  int _gen = 0;
+
   void start(String city, int firstRace, {bool galop = true, bool others = false}) {
     if (city.isEmpty) return;
+    _startAsync(city, firstRace, galop: galop, others: others);
+  }
+
+  Future<void> _startAsync(String city, int firstRace, {required bool galop, required bool others}) async {
+    final my = ++_gen;
+    // Önce sunucunun hazırladığı koşu belgeleri (son yarış / galibiyet / galop): gelenler için TJK'ya gidilmez
+    try {
+      final st = TjkStore.i;
+      final cid = st.cities.where((c) => c.name == city).map((c) => c.id).firstOrNull;
+      if (cid != null) {
+        await Future.wait([for (final r in st.races(city)) getRaceDoc(st.iso, cid, r.no)]).timeout(const Duration(seconds: 6));
+      }
+    } catch (_) {}
+    if (my != _gen) return;
     final rs = TjkStore.i.races(city).toList()
       ..sort((a, b) => a.no == firstRace ? -1 : (b.no == firstRace ? 1 : a.no.compareTo(b.no)));
     final now = DateTime.now();
@@ -44,7 +60,7 @@ class AtHistPrefetch {
         if (h.kosmaz || id.isEmpty) continue;
         // Galop sadece seçili koşu için hemen istenir (diğer koşular koşu açılınca gelir)
         if (galop && r.no == firstRace && !atGalopHazir(id) && !galopIds.contains(id)) galopIds.add(id);
-        if ((atHistHazir(id) && atPastHazir(id)) || !seen.add(id)) continue;
+        if (atHistHazir(id) || !seen.add(id)) continue;
         final f = _fail[id];
         if (f != null && now.difference(f) < const Duration(minutes: 10)) continue;
         ids.add(id);
@@ -58,7 +74,7 @@ class AtHistPrefetch {
           for (final h in r.atlar) {
             final id = h.atId;
             if (h.kosmaz || id.isEmpty) continue;
-            if ((atHistHazir(id) && atPastHazir(id)) || !seen.add(id)) continue;
+            if (atHistHazir(id) || !seen.add(id)) continue;
             final f = _fail[id];
             if (f != null && now.difference(f) < const Duration(minutes: 10)) continue;
             ids.add(id);
@@ -103,7 +119,7 @@ class AtHistPrefetch {
       }
       if (_q.isEmpty) break;
       final id = _q.removeAt(0);
-      if (atHistHazir(id) && atPastHazir(id)) continue;
+      if (atHistHazir(id)) continue;
       try {
         // Önce "Beraber koşular" için geçmiş koşular (sayfa bir kez iner, telefona kaydedilir), sonra son yarış/galibiyet özeti
         await getAtPast(id).timeout(const Duration(seconds: 30));

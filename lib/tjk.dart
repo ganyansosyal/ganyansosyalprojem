@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as hp;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'firebase_options.dart' show firebaseReady;
 
 // Worker kaldırıldı: TJK'ya doğrudan istek atılır
 const _tjkHeaders = {
@@ -1058,6 +1061,8 @@ Future<String?> getVideoMp4(String url, String iso) async {
   if (RegExp(r'\.mp4(\?|$)', caseSensitive: false).hasMatch(url)) {
     return url.startsWith('//') ? 'https:$url' : url;
   }
+  final ready = _mp4Mem[url];
+  if (ready != null) return ready;
   final past = iso.compareTo(isoToday()) < 0;
   final html = await _fetch(url, sec: 30, retry: 1, ttl: 600, disk: past ? 2592000 : 600);
   final m = RegExp(r'(?:https?:)?//video-cdn\.tjk\.org/videoftp/[^"\s<>\\]+?\.mp4', caseSensitive: false).firstMatch(html) ??
@@ -1468,6 +1473,69 @@ String _yarisNoIso(List<String> a) {
   return '';
 }
 
+
+/* ---------------- Sunucunun hazırladığı koşu belgesi (GitHub → Firestore: beraber/{tarih}_{şehirId}_{koşu}) ---------------- */
+
+final Map<String, Future<Map<String, dynamic>?>> _raceDocMem = {};
+
+/// Video sayfası adresi → mp4 adresi (sunucu önceden çözdü; oynatırken TJK'ya gidilmez)
+final Map<String, String> _mp4Mem = {};
+
+/// Belgeyi bir kez alır (bellekte tutar). Yoksa/erişilemezse null döner ve bir sonraki istekte yeniden denenir.
+/// Gelen son yarış / son galibiyet / son galop bilgileri doğrudan bellek önbelleğine konur (TJK'ya gitmeden).
+Future<Map<String, dynamic>?> getRaceDoc(String iso, String cityId, int no) {
+  final k = '${iso}_${cityId}_$no';
+  return _raceDocMem[k] ??= _getRaceDoc(k).then((d) {
+    if (d == null) _raceDocMem.remove(k);
+    return d;
+  });
+}
+
+Future<Map<String, dynamic>?> _getRaceDoc(String k) async {
+  if (!firebaseReady) return null;
+  try {
+    final ref = fs.FirebaseFirestore.instance.collection('beraber').doc(k);
+    fs.DocumentSnapshot<Map<String, dynamic>>? d;
+    try {
+      d = await ref.get(const fs.GetOptions(source: fs.Source.cache));
+    } catch (_) {}
+    final ts = d?.data()?['ts'];
+    // Telefondaki kopya yoksa ya da 3 saatten eskiyse sunucudan yenisine bak
+    if (d == null || !d.exists || ts is! fs.Timestamp || DateTime.now().difference(ts.toDate()) > const Duration(hours: 3)) {
+      final old = d;
+      try {
+        d = await ref.get().timeout(const Duration(seconds: 5));
+      } catch (_) {
+        d = old;
+      }
+    }
+    if (d == null || !d.exists) return null;
+    final data = d.data();
+    if (data == null) return null;
+    final at = data['atlar'];
+    if (at is Map) {
+      at.forEach((id, v) {
+        if (v is! Map) return;
+        final i = '$id';
+        for (final k in ['y', 'g', 'idm']) {
+          final x = v[k];
+          if (x is! Map) continue;
+          final u = '${k == 'idm' ? x['u'] ?? '' : x['v'] ?? ''}', m = '${x['m'] ?? ''}';
+          if (u.isNotEmpty && m.isNotEmpty) _mp4Mem[u] = m;
+        }
+        if (!_histMem.containsKey(i)) {
+          _histMem[i] = AtHist(v['y'] is Map ? AtRow.fromMap(v['y'] as Map) : null, v['g'] is Map ? AtRow.fromMap(v['g'] as Map) : null);
+        }
+        if (v.containsKey('gl') && !_galopMem.containsKey(i)) {
+          _galopMem[i] = v['gl'] is Map ? AtRow.fromMap(v['gl'] as Map) : null;
+        }
+      });
+    }
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
 
 /* ---------------- Beraber koşular: atın tüm geçmiş koşu satırları ---------------- */
 

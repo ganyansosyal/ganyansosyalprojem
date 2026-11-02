@@ -1,10 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'athist_prefetch.dart';
 import 'film.dart';
-import 'firebase_options.dart' show firebaseReady;
 import 'shell.dart' show IconBox;
 import 'theme.dart';
 import 'tjk.dart';
@@ -108,30 +106,13 @@ class _TogetherPageState extends State<TogetherPage> {
 
   /// GitHub'ın önceden hazırladığı sonuç (beraber/{tarih}_{şehirId}_{koşu}). Yoksa/erişilemezse null → telefonda hesaplanır.
   Future<List<_Grp>?> _fromServer(List<Horse> hs) async {
-    if (!firebaseReady) return null;
     try {
       final city = s.cities.firstWhere((c) => c.name == _city);
-      final ref = FirebaseFirestore.instance.collection('beraber').doc('${s.iso}_${city.id}_$_no');
-      DocumentSnapshot<Map<String, dynamic>> d;
-      try {
-        d = await ref.get(const GetOptions(source: Source.cache));
-        final ts = d.data()?['ts'];
-        // Telefondaki kopya 3 saatten eskiyse sunucudan yenisine bak
-        if (!d.exists || ts is! Timestamp || DateTime.now().difference(ts.toDate()) > const Duration(hours: 3)) {
-          final old = d;
-          try {
-            d = await ref.get().timeout(const Duration(seconds: 4));
-          } catch (_) {
-            d = old;
-          }
-        }
-      } catch (_) {
-        d = await ref.get().timeout(const Duration(seconds: 5));
-      }
-      if (!d.exists) return null;
+      final d = await getRaceDoc(s.iso, city.id, _no);
+      if (d == null) return null;
       final names = {for (final h in hs) h.atId: h.name};
       final out = <_Grp>[];
-      for (final g in (d.data()?['groups'] as List? ?? const [])) {
+      for (final g in (d['groups'] as List? ?? const [])) {
         if (g is! Map) continue;
         final rows = <_Row>[];
         for (final r in (g['rows'] as List? ?? const [])) {
