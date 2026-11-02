@@ -492,7 +492,7 @@ class _FeedPageState extends State<FeedPage> {
         const SizedBox(width: 8),
         Expanded(
           flex: 8,
-          child: _LiveCard(color: c.red, onTap: () => showLive(context)),
+          child: _LiveCard(color: c.red, deco: softCard(c), onTap: () => showLive(context)),
         ),
       ]),
     );
@@ -1233,12 +1233,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 }
 
 
-/// Canlı yayın kartı: kırmızı zemin, yayın dalgaları deseni, play düğmesinde nabız halkası, yanıp sönen CANLI noktası.
-/// Tek bir animasyon denetleyicisi kullanır ve sadece bu küçük alan yeniden çizilir.
+/// Canlı yayın kartı: beyaz zemin (profil kartıyla aynı), içindeki ikon ve yazılar kırmızı.
+/// Play düğmesinde nabız halkası, CANLI noktası yanıp söner. Tek denetleyici, sadece bu küçük alan yeniden çizilir.
 class _LiveCard extends StatefulWidget {
   final Color color;
+  final BoxDecoration deco;
   final VoidCallback onTap;
-  const _LiveCard({required this.color, required this.onTap});
+  const _LiveCard({required this.color, required this.deco, required this.onTap});
   @override
   State<_LiveCard> createState() => _LiveCardState();
 }
@@ -1254,57 +1255,61 @@ class _LiveCardState extends State<_LiveCard> with SingleTickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) {
+    final red = widget.color;
     return GestureDetector(
       onTap: widget.onTap,
       child: RepaintBoundary(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            color: widget.color,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Stack(children: [
-              Positioned.fill(child: CustomPaint(painter: _WavesPainter())),
-              Row(children: [
-                SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: AnimatedBuilder(
-                    animation: _a,
-                    builder: (_, __) => Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
-                      Transform.scale(
-                        scale: 1 + 0.7 * _a.value,
-                        child: Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.55 * (1 - _a.value)))),
+        child: Container(
+          decoration: widget.deco,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(children: [
+            Positioned.fill(child: CustomPaint(painter: _WavesPainter(red))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: AnimatedBuilder(
+                animation: _a,
+                builder: (_, __) => Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
+                  Transform.scale(
+                    scale: 1 + 0.7 * _a.value,
+                    child: Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: red.withValues(alpha: 0.5 * (1 - _a.value)))),
+                  ),
+                  Container(width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: red), child: const Icon(Icons.play_arrow_outlined, color: Colors.white, size: 26)),
+                ]),
+              ),
+            ),
+            // Yazılar tek blok: iki satır aynı sol çizgiden başlar, blok kalan alanın ortasında durur
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Canlı yayın', maxLines: 1, style: jakarta(14, FontWeight.w800, red)),
+                    const SizedBox(height: 3),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      AnimatedBuilder(
+                        animation: _a,
+                        builder: (_, __) => Opacity(
+                          opacity: 0.25 + 0.75 * (0.5 + 0.5 * math.cos(_a.value * 4 * math.pi)),
+                          child: Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: red)),
+                        ),
                       ),
-                      Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: Icon(Icons.play_arrow_outlined, color: widget.color, size: 26)),
+                      const SizedBox(width: 5),
+                      Text('CANLI', maxLines: 1, style: jakarta(11, FontWeight.w800, red, ls: 0.4)),
                     ]),
-                  ),
+                  ]),
                 ),
-                // Yazılar tek blok: iki satır aynı sol çizgiden başlar, blok kalan alanın ortasında durur
-                Expanded(
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Canlı yayın', maxLines: 1, style: jakarta(14, FontWeight.w800, Colors.white)),
-                        const SizedBox(height: 3),
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          AnimatedBuilder(
-                            animation: _a,
-                            builder: (_, __) => Opacity(
-                              opacity: 0.25 + 0.75 * (0.5 + 0.5 * math.cos(_a.value * 4 * math.pi)),
-                              child: Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white)),
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text('CANLI', maxLines: 1, style: jakarta(11, FontWeight.w800, Colors.white, ls: 0.4)),
-                        ]),
-                      ]),
-                    ),
-                  ),
                 ),
-              ]),
-            ]),
-          ),
+              ),
+            ),
+          ]),
+            ),
+          ]),
         ),
       ),
     );
@@ -1312,16 +1317,19 @@ class _LiveCardState extends State<_LiveCard> with SingleTickerProviderStateMixi
 }
 
 class _WavesPainter extends CustomPainter {
+  final Color color;
+  const _WavesPainter(this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width - 10, size.height / 2);
     const radii = [18.0, 34.0, 50.0, 66.0];
-    const alphas = [0.20, 0.15, 0.11, 0.07];
+    const alphas = [0.21, 0.154, 0.105, 0.063];
     for (var i = 0; i < radii.length; i++) {
-      canvas.drawCircle(center, radii[i], Paint()..style = PaintingStyle.stroke..strokeWidth = 1.5..color = Colors.white.withValues(alpha: alphas[i]));
+      canvas.drawCircle(center, radii[i], Paint()..style = PaintingStyle.stroke..strokeWidth = 1.5..color = color.withValues(alpha: alphas[i]));
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
+  bool shouldRepaint(covariant _WavesPainter old) => old.color != color;
 }
