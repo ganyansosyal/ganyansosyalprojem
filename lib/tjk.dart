@@ -7,6 +7,7 @@ import 'package:html/dom.dart';
 import 'package:html/parser.dart' as hp;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Önce önbellekli yeni Worker, ulaşılamazsa eski Worker
 const _backends = ['https://bulten.bilyoncu001.workers.dev', 'https://tiny-sunset-7f18.bilyoncu001.workers.dev'];
@@ -91,7 +92,7 @@ Future<String> _fetch(String url, {int sec = 20, int retry = 2, int ttl = 0, int
     rethrow;
   }
   if (ttl > 0) {
-    if (_htmlCache.length > 40) _htmlCache.clear();
+    if (_htmlCache.length > 120) _htmlCache.clear();
     _htmlCache[url] = (t: DateTime.now(), body: body);
   }
   if (f != null) {
@@ -353,6 +354,31 @@ List<({String s, String c})> _son6Ayir(Element? hucre) {
 
 /// TJK'dan okunan takı açıklamaları (kod -> anlam). Çıkarılan takılarda da kullanılır.
 final Map<String, String> takiAnlamCache = {};
+Timer? _takiKaydetT;
+bool _takiYuklendi = false;
+
+/// Daha önce görülen takı açıklamalarını telefondan yükler (bir kez).
+Future<void> takiAnlamYukle() async {
+  if (_takiYuklendi) return;
+  _takiYuklendi = true;
+  try {
+    final p = await SharedPreferences.getInstance();
+    final j = p.getString('taki_anlam');
+    if (j != null) {
+      (jsonDecode(j) as Map).forEach((k, v) => takiAnlamCache.putIfAbsent('$k', () => '$v'));
+    }
+  } catch (_) {}
+}
+
+void _takiKaydet() {
+  _takiKaydetT?.cancel();
+  _takiKaydetT = Timer(const Duration(seconds: 2), () async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString('taki_anlam', jsonEncode(takiAnlamCache));
+    } catch (_) {}
+  });
+}
 
 final _takiKod = RegExp(r'^[A-ZÇĞİÖŞÜ]{1,4}$');
 const _takiBilinen = ['KGK', 'KDB', 'ÖDB', 'SKG', 'GKR', 'DB', 'KG', 'SK', 'ÖG', 'K'];
@@ -363,7 +389,10 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
     k = k.replaceAll(RegExp(r'\s+'), '');
     if (!_takiKod.hasMatch(k)) return;
     a = a.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (a.isNotEmpty) takiAnlamCache[k] = a;
+    if (a.isNotEmpty && takiAnlamCache[k] != a) {
+      takiAnlamCache[k] = a;
+      _takiKaydet();
+    }
     final i = out.indexWhere((x) => x.k == k);
     if (i >= 0) {
       if (out[i].a.isEmpty && a.isNotEmpty) out[i] = (k: k, a: a);
@@ -400,6 +429,21 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
       }
       final m = RegExp(r'^([A-ZÇĞİÖŞÜ]+)([A-ZÇĞİÖŞÜ][a-zçğıöşü][\s\S]*)$').firstMatch(t);
       if (m != null && _takiKod.hasMatch(m.group(1)!)) ekle(m.group(1)!, ta.isNotEmpty ? ta : m.group(2)!);
+    }
+  }
+  // Hücrenin kendisi (veya düz metin kodları) anlamı taşıyorsa: geçmiş koşu tablosu böyle olabilir
+  if (hucre != null && out.isEmpty) {
+    var hta = '';
+    for (final n in ['title', 'data-original-title', 'data-title', 'data-content', 'data-tooltip', 'aria-label']) {
+      final v = (hucre.attributes[n] ?? '').trim();
+      if (v.isNotEmpty) {
+        hta = v;
+        break;
+      }
+    }
+    final kodlar = _clean(hucre.text).split(RegExp(r'[\s,;/]+')).where((w) => _takiKod.hasMatch(w)).toList();
+    for (final w in kodlar) {
+      ekle(w, kodlar.length == 1 ? hta : '');
     }
   }
   if (out.isEmpty && isimHam.isNotEmpty) {
@@ -1448,6 +1492,38 @@ final Map<String, List<AtPast>> _pastMem = {};
 final Map<String, Future<List<AtPast>>> _pastBusy = {};
 
 /// Bu atın tüm geçmişi bellekte hazır mı?
+/// Sunucudan (worker /atlar) birçok atın geçmiş sayfasını TEK istekle alıp bellek önbelleğine koyar.
+/// Başarısız olursa sessizce geçer; getAtPast normal yolla çeker.
+Future<void> atPastToplu(List<String> ids) async {
+  final lst = [for (final id in ids) if (id.isNotEmpty && !atPastHazir(id)) id];
+  if (lst.isEmpty) return;
+  for (var i = 0; i < lst.length; i += 7) {
+    final parca = lst.sublist(i, i + 7 > lst.length ? lst.length : i + 7);
+    unawaited(_topluParca(parca));
+  }
+  // parçalar paralel gider; hepsinin bitmesini bekle
+  await Future.wait([for (var i = 0; i < lst.length; i += 7) _topluBekle(lst.sublist(i, i + 7 > lst.length ? lst.length : i + 7))]);
+}
+
+final Map<String, Future<void>> _topluBusy = {};
+Future<void> _topluBekle(List<String> p) => _topluBusy[p.join(',')] ?? Future.value();
+Future<void> _topluParca(List<String> p) {
+  final k = p.join(',');
+  return _topluBusy[k] = () async {
+    try {
+      final r = await http.get(Uri.parse('${_backends[0]}/atlar?ids=${p.join(',')}')).timeout(const Duration(seconds: 25));
+      if (r.statusCode != 200) return;
+      final m = jsonDecode(utf8.decode(r.bodyBytes, allowMalformed: true)) as Map;
+      m.forEach((id, html) {
+        if (html is String && html.length > 2000) {
+          final url = 'https://www.tjk.org/TR/yarissever/Query/ConnectedPage/AtKosuBilgileri?1=1&QueryParameter_AtId=${Uri.encodeComponent('$id')}';
+          _htmlCache[url] = (t: DateTime.now(), body: html);
+        }
+      });
+    } catch (_) {}
+  }();
+}
+
 bool atPastHazir(String atId) => _pastMem.containsKey(atId);
 
 Future<List<AtPast>> getAtPast(String atId) {

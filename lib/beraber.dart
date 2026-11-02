@@ -56,7 +56,7 @@ class _TogetherPageState extends State<TogetherPage> {
     super.initState();
     if (s.cities.isNotEmpty) _city = s.cities.first.name;
     // Sayfa açılış animasyonu bitsin, sonra ağır işe başla
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) _load();
     });
   }
@@ -122,28 +122,33 @@ class _TogetherPageState extends State<TogetherPage> {
     _groups.value = null;
     final hs = [for (final h in race.atlar) if (!h.kosmaz && h.atId.isNotEmpty) h];
     final data = <String, List<AtPast>>{};
-    // Tahmin Yap'taki gibi: tek tek, parmak ekrandayken bekle, aralarda kısa nefes
-    for (final h in hs) {
-      if (!mounted || gen != _gen) return;
-      final ready = atPastHazir(h.atId);
-      while (!ready && !_idle) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+    // Sunucudan tüm atların sayfası tek istekle gelir (olmazsa aşağıda tek tek çekilir)
+    await atPastToplu([for (final h in hs) h.atId]);
+    if (!mounted || gen != _gen) return;
+    // Hızlı: 5 at aynı anda çekilir (eskiden tek tek bekliyordu)
+    var next = 0;
+    Future<void> worker() async {
+      while (true) {
         if (!mounted || gen != _gen) return;
+        final i = next++;
+        if (i >= hs.length) return;
+        final h = hs[i];
+        final life = WidgetsBinding.instance.lifecycleState;
+        if (life != null && life != AppLifecycleState.resumed) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
+        try {
+          data[h.name] = await getAtPast(h.atId).timeout(const Duration(seconds: 30));
+        } catch (_) {
+          data[h.name] = const [];
+        }
+        if (!mounted || gen != _gen) return;
+        final g = _build(data);
+        if (g.isNotEmpty) _publish(g);
       }
-      final life = WidgetsBinding.instance.lifecycleState;
-      if (life != null && life != AppLifecycleState.resumed) {
-        await Future<void>.delayed(const Duration(seconds: 2));
-      }
-      try {
-        data[h.name] = await getAtPast(h.atId).timeout(const Duration(seconds: 30));
-      } catch (_) {
-        data[h.name] = const [];
-      }
-      if (!mounted || gen != _gen) return;
-      final g = _build(data);
-      if (g.isNotEmpty) _publish(g);
-      if (!ready) await Future<void>.delayed(const Duration(milliseconds: 150));
     }
+
+    await Future.wait([for (var i = 0; i < 5; i++) worker()]);
     if (!mounted || gen != _gen) return;
     final g = _build(data);
     _cache[ck] = g;
