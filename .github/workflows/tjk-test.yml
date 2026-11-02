@@ -1,0 +1,29 @@
+name: TJK erisim testi
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: TJK'ya GitHub sunucusundan istek at
+        run: |
+          D=$(TZ=Europe/Istanbul date +%d/%m/%Y)
+          UA="Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36"
+          echo "### TJK erisim testi ($D)" >> $GITHUB_STEP_SUMMARY
+          echo "| Sayfa | UA | HTTP | Boyut (bayt) | Sure (sn) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          test_url () {
+            name="$1"; url="$2"; ua_name="$3"; ua="$4"
+            out=$(curl -s -o /tmp/p.html -w "%{http_code} %{size_download} %{time_total}" -m 30 -A "$ua" -H "Accept-Language: tr-TR,tr;q=0.9" "$url")
+            set -- $out
+            echo "| $name | $ua_name | $1 | $2 | $3 |" >> $GITHUB_STEP_SUMMARY
+            echo "$name ($ua_name): $out"
+            grep -qi -E "cloudflare|captcha|access denied|forbidden" /tmp/p.html && echo "  UYARI: engel sayfasi olabilir" && echo "| ↳ | | engel sayfasi olabilir | | |" >> $GITHUB_STEP_SUMMARY
+          }
+          P="https://www.tjk.org/TR/yarissever/Info/Page/GunlukYarisProgrami?QueryParameter_Tarih=$(printf %s "$D" | sed 's#/#%2F#g')&Era=today"
+          for i in 1 2 3; do
+            test_url "Gunluk program #$i" "$P" "tarayici" "$UA"
+            sleep 2
+          done
+          test_url "Gunluk program" "$P" "curl varsayilan" "curl/8.0"
+          test_url "TJK ana sayfa" "https://www.tjk.org/" "tarayici" "$UA"
