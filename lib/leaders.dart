@@ -128,11 +128,7 @@ class _LeadersPageState extends State<LeadersPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe ? c.ac.withAlpha(24) : c.sf,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: isMe ? c.ac : c.ln),
-        ),
+        decoration: softCard(c).copyWith(border: isMe ? Border.all(color: c.ac, width: 2) : null),
         child: Row(children: [
           SizedBox(
             width: 28,

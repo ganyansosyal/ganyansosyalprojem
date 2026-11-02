@@ -85,6 +85,14 @@ BoxDecoration softCard(AppColors c, {double radius = 18}) => BoxDecoration(
       boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 3))],
     );
 
+/// Şehir / koşu sekmeleri: seçili yeşil, seçilmeyen beyaz; ikisinde de 1.5 px kenar ve yumuşak gölge.
+BoxDecoration softChip(AppColors c, bool on, {double radius = 14}) => BoxDecoration(
+      color: on ? c.ac : c.sf,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: on ? c.ac : c.ln, width: 1.5),
+      boxShadow: [BoxShadow(color: on ? c.ac.withAlpha(60) : const Color(0x12000000), blurRadius: 8, offset: const Offset(0, 3))],
+    );
+
 class SoftFadePageTransitionsBuilder extends PageTransitionsBuilder {
   const SoftFadePageTransitionsBuilder();
 

@@ -710,7 +710,7 @@ Widget _chip(AppColors c, String t, bool on, VoidCallback f) => Padding(
         onTap: f,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(color: on ? c.ac : c.sf, borderRadius: BorderRadius.circular(12), border: Border.all(color: on ? c.ac : c.ln, width: 1)),
+          decoration: softChip(c, on, radius: 14),
           child: Text(t, style: jakarta(12, FontWeight.w800, on ? c.on : c.tx)),
         ),
       ),
@@ -739,7 +739,7 @@ Widget _legTab(AppColors c, int i, int r) {
           Container(
             constraints: const BoxConstraints(minWidth: 60),
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-            decoration: BoxDecoration(color: on ? c.ac : c.sf, borderRadius: BorderRadius.circular(12), border: Border.all(color: on ? c.ac : c.ln, width: 1)),
+            decoration: softChip(c, on, radius: 14),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (legs && fin) Text('✓', style: jakarta(12, FontWeight.w800, fg)),
               if (legs) Text('${i + 1}. Ayak', style: jakarta(12, FontWeight.w800, fg))
@@ -751,11 +751,11 @@ Widget _legTab(AppColors c, int i, int r) {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(color: on ? const Color(0x3DFFFFFF) : const Color(0x241A9B5C), borderRadius: BorderRadius.circular(5)),
-                      child: Text('Bitti', style: jakarta(8.5, FontWeight.w800, on ? c.on : const Color(0xFF1A9B5C))),
+                      child: Text('Bitti', style: jakarta(9.5, FontWeight.w800, on ? c.on : const Color(0xFF1A9B5C))),
                     ),
                   ],
                 ]),
-              Text(legs ? '$r. Koşu' : _saat(r), style: jakarta(10, FontWeight.w600, on ? c.on : c.mu)),
+              Text(legs ? '$r. Koşu' : _saat(r), style: jakarta(11.5, FontWeight.w600, on ? c.on : Color.lerp(c.mu, c.tx, 0.5)!)),
             ]),
           ),
           if (has)
@@ -775,7 +775,7 @@ Widget _typeBox(AppColors c) {
   final ord = (st.length > 1 && _lr.isNotEmpty && st.contains(_lr.first)) ? '${st.indexOf(_lr.first) + 1}. ' : '';
   return Container(
     padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: softCard(c),
+    decoration: softCard(c).copyWith(color: c.ac.withAlpha(20), border: Border.all(color: c.ac, width: 1.5)),
     child: Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -978,7 +978,7 @@ Widget _raceCard(AppColors c, Race r) {
   return Container(
     width: double.infinity,
     padding: const EdgeInsets.all(10),
-    decoration: softCard(c),
+    decoration: softCard(c).copyWith(color: c.ac.withAlpha(16), border: Border.all(color: c.ac.withAlpha(110), width: 1.5)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('$_city ${r.no}. Koşu • ${r.saat}', style: jakarta(15, FontWeight.w800, c.tx)),
       if (r.bilgi.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 2), child: Text(r.bilgi, style: jakarta(13.5, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!))),
@@ -1254,7 +1254,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
   // Webdeki .hgal kartı: küçük başlık + büyük satır solda, sağda ek bilgi + buton
   Widget hCard(Color col, String small, String big, {String right = '', Widget? btn, Widget? lead, String below = '', bool center = false}) {
     final left = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(small, style: jakarta(10.5, FontWeight.w700, col)),
+      Text(small, style: jakarta(12.5, FontWeight.w700, col)),
       const SizedBox(height: 1),
       Text(big, style: jakarta(15, FontWeight.w800, col).copyWith(height: 1.25)),
       if (below.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(below, style: jakarta(12, FontWeight.w600, col))),
@@ -1264,7 +1264,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
       width: double.infinity,
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: col.withAlpha(28), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: col.withAlpha(20), borderRadius: BorderRadius.circular(14), border: Border.all(color: col.withAlpha(150), width: 1.5)),
       child: Row(crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start, children: [
         if (lead != null) ...[lead, const SizedBox(width: 10)],
         Expanded(child: left),
@@ -1304,7 +1304,7 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
         child: Container(
           margin: const EdgeInsets.only(top: 6),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(color: c.red.withAlpha(24), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: c.red.withAlpha(20), borderRadius: BorderRadius.circular(14), border: Border.all(color: c.red.withAlpha(150), width: 1.5)),
           child: Row(children: [
             Container(width: 26, height: 26, decoration: BoxDecoration(color: c.red, shape: BoxShape.circle), child: const Icon(Icons.play_arrow, color: Colors.white, size: 16)),
             const SizedBox(width: 8),

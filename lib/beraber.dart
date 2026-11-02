@@ -219,7 +219,7 @@ class _TogetherPageState extends State<TogetherPage> {
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: on ? c.ac : c.sf, borderRadius: BorderRadius.circular(14), border: Border.all(color: on ? c.ac : c.ln, width: 1.5)),
+          decoration: softChip(c, on),
           child: Text(t, style: jakarta(15, FontWeight.w800, on ? c.on : c.tx)),
         ),
       );
@@ -265,7 +265,7 @@ class _TogetherPageState extends State<TogetherPage> {
         itemCount: g.length,
         addAutomaticKeepAlives: false,
         itemBuilder: (_, i) => RepaintBoundary(
-          child: _GroupCard(key: ValueKey(g[i].key), g: g[i], raceNo: _no, iso: s.iso, initiallyOpen: i == 0),
+          child: _GroupCard(key: ValueKey(g[i].key), g: g[i], raceNo: _no, iso: s.iso, initiallyOpen: false),
         ),
       ),
     );
@@ -445,7 +445,15 @@ class _RowTile extends StatelessWidget {
     final p = r.p;
     final win = p.s == '1';
     final tk = (p.tk == '?' || p.tk.isEmpty) ? const <String>[] : p.tk.split(',');
-    final sub = [p.j, if (p.kg.isNotEmpty) '${p.kg} kg', if (p.hp.isNotEmpty) 'HP ${p.hp}'].where((e) => e.isNotEmpty).join(' · ');
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final blue = dark ? const Color(0xFF7DB4FF) : const Color(0xFF2563EB);
+    final purple = dark ? const Color(0xFFC4A6FF) : const Color(0xFF7C3AED);
+    final dot = TextSpan(text: ' · ', style: jakarta(14, FontWeight.w600, c.mu));
+    final sub = <InlineSpan>[
+      if (p.j.isNotEmpty) TextSpan(text: p.j, style: jakarta(14, FontWeight.w700, blue)),
+      if (p.kg.isNotEmpty) ...[if (p.j.isNotEmpty) dot, TextSpan(text: '${p.kg} kg', style: jakarta(14, FontWeight.w700, c.gold))],
+      if (p.hp.isNotEmpty) ...[if (p.j.isNotEmpty || p.kg.isNotEmpty) dot, TextSpan(text: 'HP ${p.hp}', style: jakarta(14, FontWeight.w700, c.ac))],
+    ];
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(border: Border(top: BorderSide(color: c.ln))),
@@ -461,7 +469,7 @@ class _RowTile extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(r.name, style: jakarta(14.5, FontWeight.w800, c.tx)),
-            if (sub.isNotEmpty) Text(sub, style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
+            if (sub.isNotEmpty) Text.rich(TextSpan(children: sub)),
             if (tk.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 5),
@@ -477,8 +485,14 @@ class _RowTile extends StatelessWidget {
           ]),
         ),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(p.d, style: jakarta(13.5, FontWeight.w800, c.tx)),
-          if (p.g.isNotEmpty) Text('Gny ${p.g}', style: jakarta(14, FontWeight.w600, Color.lerp(c.mu, c.tx, 0.6)!)),
+          Text(p.d, style: jakarta(15, FontWeight.w800, c.ac)),
+          if (p.g.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: purple.withAlpha(26), borderRadius: BorderRadius.circular(10), border: Border.all(color: purple.withAlpha(100))),
+              child: Text('Gny ${p.g}', style: jakarta(13.5, FontWeight.w800, purple)),
+            ),
         ]),
       ]),
     );
