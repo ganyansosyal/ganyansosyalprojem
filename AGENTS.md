@@ -1,7 +1,26 @@
 # GanyanSosyal – Kredi + AdMob + LevelPlay işi (nerede kaldık)
 
-Tarih: 1 Kasım 2026 (02:30'da güncellendi). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
+Tarih: 2 Kasım 2026 (Worker kaldırma notları eklendi; Play/reklam notları 1 Kasım'dan). Proje: Flutter (ganyansosyalprojem), Firebase Auth + Firestore.
 Kullanıcı tercihi: kısa, basit, adım adım anlat, kafası karışınca tek tek yönlendir (telefondan Play Console/Firebase kullanıyor, ekran görüntüsü atıyor). Kodu indirilebilir DOSYA olarak ver (tek tek), GitHub linki verme, sadece hangi klasöre konacağını yaz, zip verme (kullanıcı zip verirse bile çıktıyı tek tek dosya ver). Telefondan çalışıyor, ekran görüntüsü atar.
+
+## Cloudflare Worker'lar KALDIRILDI (2 Kasım 2026) – TJK'ya doğrudan gidiliyor
+**Karar:** Eskiden uygulama ve `settle.mjs` TJK sayfalarını Cloudflare Worker'lar üzerinden çekiyordu (`bulten.bilyoncu001.workers.dev`, `tiny-sunset-7f18.bilyoncu001.workers.dev`, `galop.bilyoncu001.workers.dev`). Üçü de Cloudflare'dan SİLİNDİ. Artık kod worker'a hiç istek atmıyor. Kullanıcı yoktu, bu yüzden eski sürüm uyumu düşünülmedi.
+
+**Neden mümkün:** `.github/workflows/tjk-test.yml` ile GitHub sunucusundan TJK test edildi: günlük program sayfası 4/4 HTTP 200, ~68 KB gerçek içerik, engel yok (varsayılan curl ile bile). Telefondan doğrudan TJK'ya istek de çalıştı, bülten/at detayı/galop açılıyor ve eskisinden hızlı geldi.
+
+**Eski worker ne yapıyordu (kodu görüldü):** `bulten` worker'ı Cloudflare KV'de (`BULTEN`) önbellek tutuyordu: her 5 dakikada bir cron (iki tane) yarının programını, şehir sayfalarını, at geçmişlerini (`AtKosuBilgileri`) ve galop sayfalarını (`IdmanIstatistikleri`) TJK'dan çekip KV'ye yazıyordu, uygulama `?url=` ve `/atlar?ids=` ile hazır veriyi alıyordu. Firebase'e yazmıyordu. `env.PROXY` ile diğer worker'a (büyük ihtimalle tiny-sunset) bağlıydı. KV deposu (`BULTEN`) istenirse Cloudflare > Storage & Databases > KV'den ayrıca silinebilir.
+
+**Kodda yapılan değişiklikler:**
+- `settle.mjs`: `BACKENDS` kaldırıldı, `fetchHtml` TJK'ya doğrudan gidiyor (tarayıcı User-Agent + `Accept-Language: tr-TR`, 4 deneme, artan bekleme). Gerisi (kupon bulma, şehir eşleştirme, sonuç okuma, Firestore yazma) AYNI.
+- `lib/tjk.dart`: `_backends` yerine `_tjkHeaders`. `_fetchRaw` TJK'ya doğrudan istek atıyor (bülten, at detayı, at geçmişi hepsi bundan geçer). `getAtGalop` hep eski tek tek yola gidiyor (`_getAtGalopEski`, TJK idman sayfaları). `atPastToplu` başında `return` ile kapatıldı (worker'ın toplu `/atlar` ucu yoktu). Ölü kod kaldı: `_galopBackend`, `_galopToplu`, `_galopPump`, `_topluParca` (içinde `https://invalid.invalid/...`). İstenirse temizlenir, zararı yok.
+- `lib/beraber.dart`: "Beraber koşular" ekranı worker önbelleği gidince yavaşladı (her atın sayfası ayrı iniyor). `atPastToplu` çağrısı kaldırıldı, eşzamanlı çekim 5'ten en fazla 14'e çıkarıldı.
+- `.github/workflows/tjk-test.yml` (yeni, tek seferlik test): GitHub'dan TJK erişimini ölçer, `workflow_dispatch`. Artık gerekmiyorsa silinebilir. Not: "Engel: VAR" ana sayfada yanlış alarmdı (381 KB sayfada "forbidden" gibi kelimeler geçiyor).
+
+**Önbellek:** Çekilen at sayfaları telefonda bellekte ve diskte saklanır (`getAtPast`/`_fetch`: disk 12 saat = 43200 sn, bellek 600 sn). Önbellek her telefonda ayrıdır, kullanıcılar arasında paylaşılmaz. Geçmiş tarihlerin verisi 30 gün saklanır (`_diskTtl`).
+
+**Sonraya bırakılan (kullanıcı çoğalırsa):** At geçmişi + galop verisini GitHub Actions ile günde birkaç kez çekip Firestore'a yazmak, uygulamayı oradan okutmak. Faydası: ilk açılış hızlı, herkes ortak veriyi paylaşır, TJK'ya az istek gider. Maliyeti: yeni workflow, `tjk.dart`/`beraber.dart` okuma tarafı değişir, Firestore ücretsiz kota (günde 50 bin okuma, "Beraber koşular" açılışı başına ~10-14 okuma). TJK ileride GitHub ya da telefon isteklerini engellerse bu yola geçilir.
+
+**Bilinen küçük not:** `.github/workflows/settle.yml` içindeki cron `*/5 10-21 * * *` (her 5 dk, TR 13:00-00:59) ama yorum satırı "her 15 dk" diyor. Kod doğru, yorum eski. `settle` yeni sürümle elle çalıştırılıp logda "Bitti. Yazılan kupon: N" görülmeli (bekleyen kupon yoksa "bekleyen grup: 0" normal). Uygulama kuponu kendi hesaplıyor (admin biten bültende hazırladığı kupon doğru sonuçla geldi), `settle` ise başkalarının paylaştığı sonucu yazılmamış kuponları arka planda günceller.
 
 ## GÜNCEL DURUM (1 Kasım 2026, gece) – Play'e yükleme aşaması
 Reklamlar çalışıyor (kullanıcı teyit etti). Şimdi Flutter uygulamasını Play'deki MEVCUT uygulamanın üstüne yüklemeye çalışıyoruz.
