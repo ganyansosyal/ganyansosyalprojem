@@ -55,11 +55,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void _leave() {
     if (!mounted || _left) return;
     _left = true;
-    // geçişte solma yok
+    // Splash altta opak kalır, uygulama üstüne yavaşça belirir (araya siyah/açık renk girmez)
     Navigator.of(context).pushReplacement(PageRouteBuilder(
-      transitionDuration: Duration.zero,
+      transitionDuration: const Duration(milliseconds: 320),
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (_, __, ___) => const AuthGate(),
+      transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: CurvedAnimation(parent: a, curve: Curves.easeOut), child: child),
     ));
   }
 

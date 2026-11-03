@@ -356,7 +356,7 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    if (!_fresh) return Center(child: CircularProgressIndicator(color: c.ac));
+    if (!_fresh) return const LateSpinner();
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _me,
       builder: (context, meSnap) {
@@ -368,7 +368,7 @@ class _FeedPageState extends State<FeedPage> {
           stream: _posts,
           builder: (context, snap) {
             if (snap.hasError) return Center(child: Text(AuthService.errorText(snap.error!), style: jakarta(14, FontWeight.w600, c.mu)));
-            if (!snap.hasData) return Center(child: CircularProgressIndicator(color: c.ac));
+            if (!snap.hasData) return const LateSpinner();
             final all = snap.data!.docs.map((d) => Post(d.id, d.data())).toList();
             _lastAll = all;
             _syncRank(snap.data!, all);

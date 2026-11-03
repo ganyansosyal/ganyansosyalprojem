@@ -48,7 +48,7 @@ class _AuthGateState extends State<AuthGate> {
                 : AccessGate(key: ValueKey(user.uid), uid: user.uid, child: _ProfileGate(key: ValueKey(user.uid), user: user));
           }
           // Sayfalar arası ani değişim yerine kısa bir solma geçişi
-          return AnimatedSwitcher(duration: const Duration(milliseconds: 260), child: page);
+          return AnimatedSwitcher(duration: const Duration(milliseconds: 260), transitionBuilder: fadeInOnly, child: page);
         },
       ),
     );
@@ -73,6 +73,7 @@ class _ProfileGateState extends State<_ProfileGate> {
       future: _f,
       builder: (_, s) => AnimatedSwitcher(
         duration: const Duration(milliseconds: 260),
+        transitionBuilder: fadeInOnly,
         child: KeyedSubtree(key: ValueKey(s.hasData ? 'ready' : (s.hasError ? 'error' : 'wait')), child: _gateBody(s, c)),
       ),
     );

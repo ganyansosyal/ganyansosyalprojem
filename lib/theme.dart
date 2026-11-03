@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -239,5 +240,47 @@ class LaunchLoading extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// AnimatedSwitcher için: yeni sayfa eskisinin üstünde yavaşça belirir, eski sayfa opak kalır.
+/// (Varsayılan çapraz solmada iki sayfa aynı anda şeffaflaşıp arkadan siyah zemin göründüğü için araya koyu bir "çukur" giriyordu.)
+Widget fadeInOnly(Widget child, Animation<double> a) => AnimatedBuilder(
+      animation: a,
+      builder: (_, __) => a.status == AnimationStatus.reverse ? child : Opacity(opacity: Curves.easeOut.transform(a.value), child: child),
+    );
+
+/// İlk yarım saniye hiçbir şey göstermez, uzarsa dönen yükleme göstergesi çıkar:
+/// hızlı açılışta ekranda kısa süreli spinner yanıp sönmez.
+class LateSpinner extends StatefulWidget {
+  const LateSpinner({super.key});
+
+  @override
+  State<LateSpinner> createState() => _LateSpinnerState();
+}
+
+class _LateSpinnerState extends State<LateSpinner> {
+  bool _show = false;
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _show = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.expand();
+    return Center(child: CircularProgressIndicator(color: AppColors.of(context).ac));
   }
 }
