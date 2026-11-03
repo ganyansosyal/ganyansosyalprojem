@@ -993,6 +993,8 @@ class TjkStore extends ChangeNotifier {
   final Map<String, List<Race>> program = {};
   final Map<String, Map<int, RaceResult>> results = {};
   bool loading = false;
+  /// Gün yüklenirken 0..1 ilerleme (Şehirler 0-.2, Program .2-.6, Sonuçlar .6-1)
+  double progress = 0;
   String? error;
   Timer? _timer;
 
@@ -1027,6 +1029,7 @@ class TjkStore extends ChangeNotifier {
     final keep = newIso == iso && cities.isNotEmpty;
     iso = newIso;
     loading = !keep;
+    progress = keep ? 1 : 0.04;
     error = null;
     if (!keep) {
       cities = [];
@@ -1038,23 +1041,37 @@ class TjkStore extends ChangeNotifier {
       final nc = await getCities(iso);
       if (!keep) {
         cities = nc;
+        progress = 0.2;
         notifyListeners();
       }
       final np = <String, List<Race>>{};
+      var okN = 0;
       await Future.wait(nc.map((c) async {
         try {
           np[c.name] = await getProgram(c, iso);
         } catch (_) {
           np[c.name] = keep ? (program[c.name] ?? []) : [];
         }
-        if (!keep) program[c.name] = np[c.name]!;
+        if (!keep) {
+          program[c.name] = np[c.name]!;
+          okN++;
+          progress = 0.2 + 0.4 * okN / (nc.isEmpty ? 1 : nc.length);
+          notifyListeners();
+        }
       }));
       if (keep) program.addAll(np);
       cities = nc.where((c) => (np[c.name] ?? []).isNotEmpty).toList();
       if (cities.isEmpty) error = 'Bu tarih için koşu programı bulunamadı.';
+      // Geçmiş bir gün açılırken sonuçlar da gelene kadar çubuk görünsün (bugün: sonuçlar sonradan dolar, açılış gecikmesin)
+      if (!keep && isPast && cities.isNotEmpty) {
+        progress = 0.6;
+        notifyListeners();
+        await refreshResults();
+      }
     } catch (e) {
       if (!keep) error = e.toString().replaceFirst('Exception: ', '');
     }
+    progress = 1;
     loading = false;
     notifyListeners();
     refreshResults();

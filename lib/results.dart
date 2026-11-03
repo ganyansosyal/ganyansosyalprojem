@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -110,7 +111,12 @@ class _ResultsPageState extends State<ResultsPage> {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    if (s.loading && s.cities.isEmpty) return Center(child: CircularProgressIndicator(color: c.ac));
+    if (s.loading) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+        children: [_dateBar(c), const SizedBox(height: 34), _loadCard(c)],
+      );
+    }
     final city = _city.isEmpty && s.cities.isNotEmpty ? s.cities.first.name : _city;
     final races = s.races(city);
     final done = races.where((k) => s.raceDone(city, k.no)).length;
@@ -135,18 +141,7 @@ class _ResultsPageState extends State<ResultsPage> {
         cacheExtent: 3000,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
         children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: softCard(c, radius: 16.0),
-          child: Row(children: [
-            _arrow(c, Icons.chevron_left, () => _day(-1)),
-            Expanded(child: Column(children: [
-              if (isoTag(s.iso).isNotEmpty) Text(isoTag(s.iso), style: jakarta(10, FontWeight.w800, c.ac)),
-              Text(isoLabel(s.iso), style: jakarta(14.5, FontWeight.w800, c.tx)),
-            ])),
-            _arrow(c, Icons.chevron_right, () => _day(1)),
-          ]),
-        ),
+        _dateBar(c),
         const SizedBox(height: 8),
         if (s.cities.isEmpty)
           Padding(padding: const EdgeInsets.all(20), child: Text(s.error ?? 'Sonuçlar yükleniyor…', textAlign: TextAlign.center, style: jakarta(13, FontWeight.w600, c.mu)))
@@ -178,6 +173,77 @@ class _ResultsPageState extends State<ResultsPage> {
             Padding(padding: const EdgeInsets.all(20), child: Text('Henüz sonuç yok. Koşular bitip ödemeler yayınlanınca burada görünecek.', textAlign: TextAlign.center, style: jakarta(13, FontWeight.w600, c.mu))),
         ],
       ]),
+    );
+  }
+
+  Widget _dateBar(AppColors c) => Container(
+        padding: const EdgeInsets.all(6),
+        decoration: softCard(c, radius: 16.0),
+        child: Row(children: [
+          _arrow(c, Icons.chevron_left, () => _day(-1)),
+          Expanded(child: Column(children: [
+            if (isoTag(s.iso).isNotEmpty) Text(isoTag(s.iso), style: jakarta(10, FontWeight.w800, c.ac)),
+            Text(isoLabel(s.iso), style: jakarta(14.5, FontWeight.w800, c.tx)),
+          ])),
+          _arrow(c, Icons.chevron_right, () => _day(1)),
+        ]),
+      );
+
+  // Tarih değişince veri gelene kadar: dolum çubuğu + adımlar (dönen simge yok)
+  Widget _loadCard(AppColors c) {
+    final p = s.progress.clamp(0.0, 1.0);
+    Widget chip(String t, double from, double to) {
+      final ok = p >= to;
+      final now = !ok && p >= from;
+      final col = ok ? c.ac : (now ? c.tx : c.mu);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(color: c.sf2, borderRadius: BorderRadius.circular(999)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: ok ? c.ac : (now ? c.gold : c.ln))),
+          const SizedBox(width: 6),
+          Text(t, style: jakarta(11.5, FontWeight.w700, col)),
+        ]),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      decoration: softCard(c, radius: 22.0),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: p),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        builder: (context, v, _) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+            Expanded(child: Text(p >= 1 ? 'Hazır' : 'Sonuçlar getiriliyor', style: jakarta(14, FontWeight.w800, c.tx))),
+            Text('${(v * 100).round()}%', style: jakarta(22, FontWeight.w800, c.ac).copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 12,
+              color: c.ln,
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: v.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)]),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [BoxShadow(color: Color(0x800E9F73), blurRadius: 10)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(spacing: 8, runSpacing: 8, children: [chip('Şehirler', 0, 0.2), chip('Program', 0.2, 0.6), chip('Sonuçlar', 0.6, 1)]),
+          const SizedBox(height: 12),
+          Text('${isoLabel(s.iso)} için veriler alınıyor', style: jakarta(12, FontWeight.w600, c.mu)),
+        ]),
+      ),
     );
   }
 

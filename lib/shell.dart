@@ -349,7 +349,7 @@ class _ShellState extends State<Shell> {
             ),
           ),
           // Yüzen sohbet butonu: sürüklenir, bırakılınca en yakın kenara yapışır, konum hatırlanır.
-          // Tahmin Yap sayfasında gizlenir
+          // Sadece Akış sekmesinde görünür
           Builder(builder: (context) {
             const fab = 52.0, m = 14.0;
             final sz = MediaQuery.sizeOf(context);
@@ -364,13 +364,13 @@ class _ShellState extends State<Shell> {
               left: left,
               top: top,
               child: IgnorePointer(
-                ignoring: _tab == 2,
+                ignoring: _tab != 0,
                 child: AnimatedScale(
-                  scale: _tab == 2 ? 0 : (_chatDrag ? 1.12 : 1),
+                  scale: _tab != 0 ? 0 : (_chatDrag ? 1.12 : 1),
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOutBack,
                   child: AnimatedOpacity(
-                    opacity: _tab == 2 ? 0 : 1,
+                    opacity: _tab != 0 ? 0 : 1,
                     duration: const Duration(milliseconds: 200),
                     child: GestureDetector(
                       onTap: () => openChat(context),
