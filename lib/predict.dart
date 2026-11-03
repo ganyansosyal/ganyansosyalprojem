@@ -210,6 +210,8 @@ class _PredictPageState extends State<PredictPage> {
     if (_city.isEmpty) return;
     final m = typeMusait(_t, _city, admin: _admin, picked: _legSel['${_t.k}|$_city']);
     if (m.ok) return;
+    // Koşu başladıysa tür değişmez: kullanıcı biten koşuları görebilsin (oynama zaten kapalı)
+    if (m.why.endsWith('koşu başladı')) return;
     BetType? alt;
     for (final t in kTypes) {
       if (t.k != _t.k && t.mode == 'legs' && t.rule == _t.rule && t.n == _t.n && typeMusait(t, _city, admin: _admin).ok) {
@@ -618,15 +620,15 @@ Widget build(BuildContext context) {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              for (var i = 0; i < st.length; i++)
-                _chip(c, '${i + 1}. ${_t.name.split(' ').last == 'Ganyan' ? 'grup' : 'grup'} · ${st[i]}.–${st[i] + _t.n - 1}.', st[i] == (lr.isNotEmpty ? lr.first : -1), () {
+              for (final g in st)
+                _chip(c, '${_open(g) ? '' : '✓ '}${_t.n == 2 ? '$g-${g + 1}' : '${st.indexOf(g) + 1}. grup · $g.–${g + _t.n - 1}.'}', g == (lr.isNotEmpty ? lr.first : -1), () {
                   setState(() {
                     if (_sel.isNotEmpty) {
                       _sel.clear();
                       _toast('Ayak grubu değişti, seçimler temizlendi.');
                     }
-                    _legSel['${_t.k}|$_city'] = st[i];
-                    _race = st[i];
+                    _legSel['${_t.k}|$_city'] = g;
+                    _race = g;
                     _slot = 0;
                   });
                 }),
@@ -822,9 +824,9 @@ void _pickType() {
                   final m = typeMusait(t, _city, admin: _admin);
                   final on = t.k == _t.k;
                   return Opacity(
-                    opacity: m.ok ? 1 : 0.45,
+                    opacity: (m.ok || m.why.endsWith('koşu başladı')) ? 1 : 0.45,
                     child: GestureDetector(
-                      onTap: m.ok
+                      onTap: (m.ok || m.why.endsWith('koşu başladı'))
                           ? () {
                               Navigator.pop(ctx);
                               _setType(t);

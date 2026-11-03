@@ -27,8 +27,7 @@ const kTypes = <BetType>[
   BetType('siv', 'Sıralı İkili (Virgüllü)', 'race', 'slots', slots: 2, one: true, vir: true, sub: 'sıralı ilk 2', desc: 'En az 2 at seç, sıran önemli (virgüllü)', hint: 'Atlara sırayla dokun (en az 2). Dokunma sırası = sıralaman.'),
   BetType('ik', 'İkili Bahis', 'race', 'any2', tabs: 2, sub: 'ilk 2', desc: 'İlk iki atı sırasız bul', hint: '1. At ve 2. At sekmelerinden birer veya daha fazla at seç.'),
   BetType('ik1', 'İkili Bahis (Tek kolon)', 'race', 'any2', sub: 'tek kolon', desc: 'İlk iki at, tek kolon', hint: 'En az 2 at seç. Olası tüm ikili çiftler oynanır.'),
-  BetType('c2', 'Çifte Bahis', 'legs', 'win', n: 2, sub: '2 ayak', si: 0),
-  BetType('c2b', 'Çifte Bahis', 'legs', 'win', n: 2, sub: '2 ayak', si: 1),
+  BetType('c2', 'Çifte Bahis', 'legs', 'win', n: 2, sub: '2 ayak'),
   BetType('pi', 'Plase İkili', 'race', 'pl2', tabs: 2, sub: 'plase 2 at', desc: "Plase'ye girecek iki atı bul", hint: '1. At ve 2. At sekmelerinden at seç.'),
   BetType('pi1', 'Plase İkili (Tek kolon)', 'race', 'pl2', exact: 2, sub: 'tek kolon', desc: 'Plase ikili, tek kolon', hint: 'Tam 2 at seç.'),
   BetType('su', 'Sıralı Üçlü', 'race', 'slots', slots: 3, sub: 'sıralı ilk 3', desc: 'İlk üç atı sırasıyla bul', hint: 'Üstteki sekmeden sırayı seç (1. / 2. / 3. At).'),
@@ -41,7 +40,7 @@ const kTypes = <BetType>[
 
 const _legMap = <String, (String, int)>{
   'p7': ('PLASE', 7), 'g7': ('GANYAN', 7), 'g6': ('GANYAN', 6), 'g6b': ('GANYAN', 6), 'g5': ('GANYAN', 5), 'g5b': ('GANYAN', 5),
-  'g4': ('GANYAN', 4), 'g4b': ('GANYAN', 4), 'g3': ('GANYAN', 3), 'g3b': ('GANYAN', 3), 'c2': ('CIFTE', 2), 'c2b': ('CIFTE', 2),
+  'g4': ('GANYAN', 4), 'g4b': ('GANYAN', 4), 'g3': ('GANYAN', 3), 'g3b': ('GANYAN', 3), 'c2': ('CIFTE', 2),
 };
 
 const oyunKey = <String, String>{'g1': 'g1', 'pl': 'pl', 'gp': 'gp', 'si': 'si', 'siv': 'si', 'ik': 'ik', 'ik1': 'ik', 'pi': 'pi', 'pi1': 'pi', 'su': 'su', 'suv': 'su', 'tb': 'tb', 'tbv': 'tb', 's5': 's5', 's5v': 's5'};
@@ -61,6 +60,14 @@ List<int> legStarts(BetType t, String city) {
   return TjkStore.i.races(city).where((k) => k.baslar.any((x) => x.tur == mp.$1 && x.n == mp.$2)).map((k) => k.no).toList();
 }
 
+/// Henüz başlamamış ayak grupları (admin / geçmiş gün: hepsi).
+List<int> openLegStarts(BetType t, String city, {bool admin = false}) {
+  final s = TjkStore.i;
+  final all = legStarts(t, city);
+  if (admin || s.isPast) return all;
+  return all.where((r) => !s.raceDone(city, r)).toList();
+}
+
 bool _legBilgiVar(String city) => TjkStore.i.races(city).any((k) => k.baslar.isNotEmpty);
 
 /// Ayak grubunun başlangıç koşusu (null = bu şehirde oynanamaz).
@@ -70,7 +77,7 @@ int? legStart(BetType t, String city, {int? picked, bool admin = false}) {
   bool open(int r) => admin || s.isPast || !s.raceDone(city, r);
   if (_legBilgiVar(city)) {
     final st0 = legStarts(t, city);
-    if (picked != null && st0.contains(picked) && open(picked)) return picked;
+    if (picked != null && st0.contains(picked)) return picked; // başlamış grup da görüntülenebilir; oynama typeMusait'te kapanır
   }
   if (t.si != null) {
     if (_legBilgiVar(city)) {
