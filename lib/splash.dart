@@ -110,13 +110,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    const mint = Color(0xFF5CF0BD), gold = Color(0xFFF5C451), gold2 = Color(0xFFFFE29A);
+    const mint = Color(0xFF8DF5CD), gold = Color(0xFFF5C451), gold2 = Color(0xFFFFE29A);
     const word = 'GanyanSosyal';
     return Scaffold(
-      backgroundColor: const Color(0xFF04201A),
+      backgroundColor: const Color(0xFF073B2D),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(center: Alignment(0, -.25), radius: 1.1, colors: [Color(0xFF0A4A37), Color(0xFF04201A)], stops: [0, .75]),
+          gradient: RadialGradient(center: Alignment(0, -.25), radius: 1.1, colors: [Color(0xFF0B6A4E), Color(0xFF073B2D)], stops: [0, .75]),
         ),
         child: Stack(children: [
           // yumuşak ışık küreleri
@@ -125,7 +125,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             builder: (_, __) {
               final f = Curves.easeInOut.transform(_float.value);
               return Stack(children: [
-                Positioned(left: -90 + 30 * f, top: 70 - 26 * f, child: _orb(300, const Color(0xFF12A877))),
+                Positioned(left: -90 + 30 * f, top: 70 - 26 * f, child: _orb(300, const Color(0xFF1FBF8B))),
                 Positioned(right: -80 - 30 * f, bottom: 90 + 26 * f, child: _orb(260, const Color(0xFF0D7A56))),
               ]);
             },
@@ -212,7 +212,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                                     crossAxisAlignment: CrossAxisAlignment.baseline,
                                     textBaseline: TextBaseline.alphabetic,
                                     children: [
-                                      Text('Yükleniyor', style: jakarta(15, FontWeight.w500, const Color(0xB3F4FFF9))),
+                                      Text('Yükleniyor', style: jakarta(15, FontWeight.w500, const Color(0xE0F4FFF9))),
                                       Text('%${(v * 100).round()}',
                                           style: jakarta(30, FontWeight.w800, gold, ls: -.6).copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
                                     ],
@@ -251,8 +251,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: on ? const Color(0xFFF5C451) : Colors.transparent,
           borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: on ? const Color(0xFFF5C451) : const Color(0x2EFFFFFF)),
+          border: Border.all(color: on ? const Color(0xFFF5C451) : const Color(0x59FFFFFF)),
         ),
-        child: Text(text, style: jakarta(14, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0x8CF4FFF9))),
+        child: Text(text, style: jakarta(14, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0xD9F4FFF9))),
       );
 }
