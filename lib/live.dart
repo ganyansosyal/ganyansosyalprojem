@@ -8,8 +8,8 @@ import 'theme.dart';
 
 // TJK TV (Tay TV) resmi yayın adresleri. Yayın adresi değişirse yalnızca burası güncellenir.
 const _liveUrls = [
-  'https://tjktv-live.tjk.org/taytv/taytv.m3u8',
-  'https://tjktv-live.tjk.org/taytv/taytv_480p.m3u8',
+  'https://tjktv-live.tjk.org/taytv/taytv_480p.m3u8', // önce 480p: veri tasarrufu
+  'https://tjktv-live.tjk.org/taytv/taytv.m3u8', // 480p açılmazsa ana yayın
 ];
 
 const _ac = Color(0xFF12B886);
@@ -80,7 +80,7 @@ class _LivePageState extends State<_LivePage> with WidgetsBindingObserver {
     if (s == AppLifecycleState.paused) _v?.pause();
   }
 
-  // Önce ana yayını, olmazsa 480p yayını dener.
+  // Önce 480p yayını, olmazsa ana yayını dener.
   Future<void> _open() async {
     if (_failed) setState(() => _failed = false);
     final old = _v;
