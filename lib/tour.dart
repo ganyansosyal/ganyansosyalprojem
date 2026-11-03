@@ -497,20 +497,20 @@ class _TourOverlayState extends State<_TourOverlay> with TickerProviderStateMixi
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: c.gold.withAlpha(28),
+        color: c.ac.withAlpha(26),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.gold.withAlpha(90)),
+        border: Border.all(color: c.ac.withAlpha(100)),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         AnimatedBuilder(
           animation: _pulse,
           builder: (_, __) => Transform.translate(
             offset: Offset(0, math.sin(_pulse.value * 2 * math.pi) * 3),
-            child: Icon(Icons.touch_app_rounded, size: 21, color: c.gold),
+            child: Icon(Icons.touch_app_rounded, size: 21, color: c.ac),
           ),
         ),
         const SizedBox(width: 8),
-        Text(text, style: jakarta(13, FontWeight.w800, c.gold)),
+        Text(text, style: jakarta(13, FontWeight.w800, c.ac)),
       ]),
     );
   }
