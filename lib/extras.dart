@@ -48,6 +48,36 @@ Widget _row(AppColors c, String a, String b) => Padding(
       ]),
     );
 
+Widget _notice(AppColors c) => Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.red.withAlpha(24), borderRadius: BorderRadius.circular(20), border: Border.all(color: c.red.withAlpha(90))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.info_outline_rounded, size: 20, color: c.red),
+          const SizedBox(width: 8),
+          Text('Önemli bilgilendirme', style: jakarta(16, FontWeight.w800, c.red)),
+        ]),
+        const SizedBox(height: 8),
+        Text('GanyanSosyal bir bahis veya kumar uygulaması değildir. Burada gerçek para ile bahis oynatılmaz, para yatırılmaz ve para çekilmez.', style: jakarta(13.5, FontWeight.w600, c.tx).copyWith(height: 1.4)),
+        const SizedBox(height: 8),
+        for (final t in const [
+          'Kuponlar tamamen sanaldır. Resmi bir bahis kuponu değildir ve geçerliliği yoktur.',
+          'Tutan kuponlar için ikramiye, ödül veya para talep edilemez. Sonuçlar sadece uygulama içi puan ve sıralamada gösterilir.',
+          'Puanlar ve krediler eğlence ve tahmin amaçlıdır. Gerçek bir parasal değeri yoktur, paraya veya başka bir ürüne çevrilemez.',
+          'Uygulama kumarı ve bahis oynamayı teşvik etmez.',
+          'Kullanmak için 18 yaşını doldurmuş olman gerekir.',
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('•  ', style: jakarta(13.5, FontWeight.w800, c.red)),
+              Expanded(child: Text(t, style: jakarta(13.5, FontWeight.w500, c.tx).copyWith(height: 1.4))),
+            ]),
+          ),
+      ]),
+    );
+
 /* ---------------- Kurallar ---------------- */
 
 class RulesPage extends StatelessWidget {
@@ -60,6 +90,7 @@ class RulesPage extends StatelessWidget {
       context,
       'Kurallar',
       ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
+        _notice(c),
         Text('Puan sadece paylaştığın kuponlardan gelir. Sonuçlar TJK\'dan otomatik alınır ve kuponlar kendiliğinden değerlendirilir.', style: jakarta(14, FontWeight.w500, c.mu)),
         const SizedBox(height: 12),
         _card(c, 'Kupon tutarsa kaç puan', [for (final t in sira) _row(c, t, '${fmtPts(typePts(t))} puan')],
