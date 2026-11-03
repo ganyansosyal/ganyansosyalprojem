@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:media_kit/media_kit.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
@@ -26,6 +27,7 @@ const _barStyle = SystemUiOverlayStyle(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   await preloadFonts();
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000

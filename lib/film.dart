@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import 'predict.dart' show NoBadge;
 import 'theme.dart';
@@ -47,25 +48,123 @@ Future<void> showRaceFilm(
 /// Videoyu doğrudan YATAY TAM EKRANDA açar (alt panel yok). Kullanıcı kendisi kapatır.
 /// Video hazır olunca açılır; hata olursa istisna fırlatır (çağıran yer mesaj gösterir).
 Future<void> showFullVideo(BuildContext context, String url) async {
-  final v = VideoPlayerController.networkUrl(Uri.parse(url));
+  final v = _PV(url);
   try {
-    await v.initialize();
+    await v.ready();
   } catch (e) {
-    await v.dispose();
+    v.dispose();
     rethrow;
   }
   if (!context.mounted) {
-    await v.dispose();
+    v.dispose();
     return;
   }
-  await v.play();
   try {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => _FullVideo(controller: v)));
   } finally {
     await v.pause();
     // Kapanış animasyonu bitmeden denetleyici silinmesin
     await Future.delayed(const Duration(milliseconds: 600));
-    await v.dispose();
+    v.dispose();
+  }
+}
+
+/// media_kit (libmpv) oynatıcı sarmalayıcısı. Arabellek sınırlı: izlerken dosya boyutundan fazla veri çekmez,
+/// geri sarma / hız değiştirme aynı arabellekten çalışır (yeniden indirmez).
+class _PV extends ChangeNotifier {
+  final Player player;
+  late final VideoController video;
+  final List<StreamSubscription> _subs = [];
+  bool isPlaying = false, error = false, _dead = false;
+  Duration position = Duration.zero, duration = Duration.zero, buffered = Duration.zero;
+  double playbackSpeed = 1;
+  int _w = 0, _h = 0;
+
+  _PV(String url) : player = Player(configuration: const PlayerConfiguration(bufferSize: 32 * 1024 * 1024)) {
+    video = VideoController(player);
+    try {
+      final np = player.platform as NativePlayer;
+      np.setProperty('demuxer-max-bytes', '${32 * 1024 * 1024}');
+      np.setProperty('demuxer-max-back-bytes', '${32 * 1024 * 1024}'); // geri sarınca tekrar indirmesin
+      np.setProperty('cache', 'yes');
+    } catch (_) {}
+    _subs.addAll([
+      player.stream.playing.listen((v) => _set(() => isPlaying = v)),
+      player.stream.position.listen((v) => _set(() => position = v)),
+      player.stream.duration.listen((v) => _set(() => duration = v)),
+      player.stream.buffer.listen((v) => _set(() => buffered = v)),
+      player.stream.rate.listen((v) => _set(() => playbackSpeed = v)),
+      player.stream.width.listen((v) => _set(() => _w = v ?? 0)),
+      player.stream.height.listen((v) => _set(() => _h = v ?? 0)),
+      player.stream.error.listen((_) => _set(() => error = true)),
+    ]);
+    player.open(Media(url), play: true);
+  }
+
+  void _set(VoidCallback f) {
+    if (_dead) return;
+    f();
+    notifyListeners();
+  }
+
+  _PV get value => this;
+  bool get isInitialized => duration > Duration.zero && _w > 0 && _h > 0;
+  double get aspectRatio => (_w > 0 && _h > 0) ? _w / _h : 16 / 9;
+
+  Future<void> play() => player.play();
+  Future<void> pause() => player.pause();
+  Future<void> seekTo(Duration d) => player.seek(d);
+  Future<void> setPlaybackSpeed(double s) => player.setRate(s);
+
+  /// Video açılana kadar bekler; olmazsa istisna fırlatır.
+  Future<void> ready() async {
+    final end = DateTime.now().add(const Duration(seconds: 25));
+    while (!isInitialized) {
+      if (error || _dead) throw 'video acilamadi';
+      if (DateTime.now().isAfter(end)) throw 'zaman asimi';
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  @override
+  void dispose() {
+    _dead = true;
+    for (final s in _subs) {
+      s.cancel();
+    }
+    player.dispose();
+    super.dispose();
+  }
+}
+
+/// Dokunarak / sürükleyerek sarılabilen ilerleme çubuğu.
+class _Bar extends StatelessWidget {
+  final _PV v;
+  const _Bar(this.v);
+  @override
+  Widget build(BuildContext context) {
+    final d = v.duration.inMilliseconds;
+    double fr(Duration x) => d <= 0 ? 0 : (x.inMilliseconds / d).clamp(0.0, 1.0);
+    return LayoutBuilder(builder: (_, c) {
+      void seekAt(double dx) {
+        if (d <= 0) return;
+        v.seekTo(Duration(milliseconds: (d * (dx / c.maxWidth).clamp(0.0, 1.0)).round()));
+      }
+
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (e) => seekAt(e.localPosition.dx),
+        onHorizontalDragUpdate: (e) => seekAt(e.localPosition.dx),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Stack(children: [
+            Container(height: 4, decoration: BoxDecoration(color: const Color(0x26FFFFFF), borderRadius: BorderRadius.circular(2))),
+            FractionallySizedBox(widthFactor: fr(v.buffered), child: Container(height: 4, decoration: BoxDecoration(color: const Color(0x44FFFFFF), borderRadius: BorderRadius.circular(2)))),
+            FractionallySizedBox(widthFactor: fr(v.position), child: Container(height: 4, decoration: BoxDecoration(color: _ac, borderRadius: BorderRadius.circular(2)))),
+          ]),
+        ),
+      );
+    });
   }
 }
 
@@ -81,9 +180,8 @@ class _FilmSheet extends StatefulWidget {
 }
 
 class _FilmSheetState extends State<_FilmSheet> {
-  late final VideoPlayerController _v = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+  late final _PV _v = _PV(widget.url);
   double _speed = 1;
-  bool _err = false;
   List<FilmRow> _rows = const [];
   bool _ld = false, _fail = false;
 
@@ -122,13 +220,6 @@ class _FilmSheetState extends State<_FilmSheet> {
     _rows = widget.rows;
     _v.addListener(_tick);
     if (widget.loader != null && _rows.isEmpty) _load();
-    _v.initialize().then((_) {
-      if (!mounted) return;
-      setState(() {});
-      _v.play();
-    }).catchError((_) {
-      if (mounted) setState(() => _err = true);
-    });
   }
 
   void _tick() {
@@ -212,7 +303,7 @@ class _FilmSheetState extends State<_FilmSheet> {
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       color: Colors.black,
-                      child: _err
+                      child: _v.error
                           ? Center(child: Text('Video yüklenemedi.', style: jakarta(13, FontWeight.w600, Colors.white70)))
                           : !ok
                               ? const Center(child: SizedBox(width: 26, height: 26, child: CircularProgressIndicator(color: _ac, strokeWidth: 2.5)))
@@ -220,7 +311,7 @@ class _FilmSheetState extends State<_FilmSheet> {
                                   behavior: HitTestBehavior.opaque,
                                   onTap: () => setState(() => _v.value.isPlaying ? _v.pause() : _v.play()),
                                   child: Stack(fit: StackFit.expand, children: [
-                                    VideoPlayer(_v),
+                                    Video(controller: _v.video, controls: NoVideoControls, fill: Colors.black),
                                     if (!_v.value.isPlaying)
                                       Center(
                                         child: Container(
@@ -243,12 +334,7 @@ class _FilmSheetState extends State<_FilmSheet> {
                                           Text('${_fmt(_v.value.position)} / ${_fmt(_v.value.duration)}', style: jakarta(11, FontWeight.w700, Colors.white70)),
                                           const SizedBox(width: 10),
                                           Expanded(
-                                            child: VideoProgressIndicator(
-                                              _v,
-                                              allowScrubbing: true,
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                              colors: const VideoProgressColors(playedColor: _ac, bufferedColor: Color(0x44FFFFFF), backgroundColor: Color(0x26FFFFFF)),
-                                            ),
+                                            child: _Bar(_v),
                                           ),
                                           GestureDetector(
                                             onTap: _full,
@@ -383,7 +469,7 @@ class _FilmSheetState extends State<_FilmSheet> {
 }
 
 class _FullVideo extends StatefulWidget {
-  final VideoPlayerController controller;
+  final _PV controller;
   const _FullVideo({required this.controller});
   @override
   State<_FullVideo> createState() => _FullVideoState();
@@ -393,7 +479,7 @@ class _FullVideoState extends State<_FullVideo> {
   bool _show = true;
   Timer? _t;
 
-  VideoPlayerController get _v => widget.controller;
+  _PV get _v => widget.controller;
 
   void _tick() {
     if (mounted) setState(() {});
@@ -474,7 +560,7 @@ class _FullVideoState extends State<_FullVideo> {
               behavior: HitTestBehavior.opaque,
               onTap: _toggleUi,
               child: Center(
-                child: AspectRatio(aspectRatio: v.value.isInitialized ? v.value.aspectRatio : 16 / 9, child: VideoPlayer(v)),
+                child: AspectRatio(aspectRatio: v.value.isInitialized ? v.value.aspectRatio : 16 / 9, child: Video(controller: v.video, controls: NoVideoControls, fill: Colors.black)),
               ),
             ),
           ),
@@ -524,7 +610,7 @@ class _FullVideoState extends State<_FullVideo> {
                       ],
                     ]),
                     const SizedBox(height: 6),
-                    VideoProgressIndicator(v, allowScrubbing: true, padding: const EdgeInsets.symmetric(vertical: 8), colors: const VideoProgressColors(playedColor: _ac)),
+                    _Bar(v),
                   ]),
                 ),
               ),
