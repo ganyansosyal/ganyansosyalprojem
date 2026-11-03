@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import 'theme.dart';
 import 'preload.dart';
 import 'levelplay_ads.dart';
 import 'splash.dart';
+import 'auth_page.dart';
 
 const _barGreen = Color(0xFF0E7C5B);
 const _barStyle = SystemUiOverlayStyle(
@@ -84,7 +86,8 @@ class GanyanApp extends StatelessWidget {
         },
         theme: buildTheme(AppColors.light, Brightness.light),
         darkTheme: buildTheme(AppColors.dark, Brightness.dark),
-        home: const SplashPage(),
+        // giriş yapılmamışsa splash'ı atla, doğrudan giriş ekranı
+        home: (firebaseReady && FirebaseAuth.instance.currentUser == null) ? const AuthGate() : const SplashPage(),
       ),
       ),
     );
