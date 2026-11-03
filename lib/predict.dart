@@ -1667,14 +1667,28 @@ class _TakiRowState extends State<_TakiRow> {
     if (atHistHazir(id)) {
       getAtHist(id).then((r) {
         final tk = r.yaris?.tk ?? '?';
-        if (!mounted || tk == '?') return;
-        setState(() => _prev = tk.isEmpty ? <String>{} : tk.split(',').toSet());
-      }, onError: (Object _) {});
+        if (!mounted) return;
+        // Boş/bilinmeyen: sunucudaki hazır veri eski olabilir -> TJK'dan canlı doğrula
+        if (tk == '?' || tk.isEmpty) {
+          _canli(id);
+          return;
+        }
+        setState(() => _prev = tk.split(',').toSet());
+      }, onError: (Object _) => _canli(id));
     } else if (_tries++ < 3) {
       Future.delayed(const Duration(seconds: 6), () {
         if (mounted) _load();
       });
+    } else {
+      _canli(id);
     }
+  }
+
+  void _canli(String id) {
+    atSonTakiCanli(id).then((tk) {
+      if (!mounted || tk == '?') return;
+      setState(() => _prev = tk.isEmpty ? <String>{} : tk.split(',').toSet());
+    }, onError: (Object _) {});
   }
 
   Widget _chip(BuildContext ctx, String k, String a, String st) {
@@ -1744,7 +1758,14 @@ class _TakiRowState extends State<_TakiRow> {
       }
       if (cur.isEmpty && prev.isNotEmpty) kids.add(_chip(context, 'Takısız', '', 'none'));
     }
-    return Wrap(alignment: WrapAlignment.end, runSpacing: 2, children: kids);
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      // teşhis: uzun basınca uygulamanın okuduğu takı verisi görünür
+      onLongPress: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Bugün: ${cur.map((e) => e.k).join(',')}  |  Son koşu: ${prev == null ? 'bilinmiyor' : (prev.isEmpty ? 'takısız' : prev.join(','))}'),
+      )),
+      child: Wrap(alignment: WrapAlignment.end, runSpacing: 2, children: kids),
+    );
   }
 }
 

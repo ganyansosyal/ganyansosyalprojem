@@ -401,6 +401,15 @@ List<String>? _takiBol(String s) {
   return null;
 }
 
+/// Geçmiş koşu tablosundaki takı hücresi -> "KG,DB,SK". Hücrede kod gibi metin var ama
+/// tam çözülemediyse '?' (bilinmiyor) döner; böylece yanlışlıkla "yeni takıldı" gösterilmez.
+String _takiHucreTk(Element td) {
+  final kodlar = _takiCikar(td, '', null).map((e) => e.k).toList();
+  final harf = _clean(td.text).split(RegExp(r'[\s,;/]+')).where((w) => RegExp(r'^[A-ZÇĞİÖŞÜ]+$').hasMatch(w)).join('');
+  if (harf.isNotEmpty && kodlar.join('') != harf) return '?';
+  return kodlar.join(',');
+}
+
 List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element? atLinki) {
   final out = <({String k, String a})>[];
   void ekle(String k, String a) {
@@ -1175,6 +1184,24 @@ Future<AtHist> getAtHist(String atId) {
   }();
 }
 
+/// Atın SON koşudaki takısını doğrudan TJK sayfasından (güncel parser ile) okur.
+/// Sunucudaki hazır veri eski/hatalı olabilir; bu yüzden boş/bilinmeyen sonuçlar bununla doğrulanır.
+/// Dönüş: "KG,DB,SK" | "" (takısız) | "?" (bilinmiyor)
+final Map<String, Future<String>> _tkCanli = {};
+Future<String> atSonTakiCanli(String atId) {
+  return _tkCanli[atId] ??= () async {
+    try {
+      final url = 'https://www.tjk.org/TR/yarissever/Query/ConnectedPage/AtKosuBilgileri?1=1&QueryParameter_AtId=${Uri.encodeComponent(atId)}';
+      final html = await _fetch(url, sec: 25, retry: 1, ttl: 600, disk: 43200, fresh: false);
+      final m = await compute(_atHistIso, <String>[html, atId]);
+      return '${m['yaris']?['tk'] ?? '?'}';
+    } catch (_) {
+      _tkCanli.remove(atId);
+      return '?';
+    }
+  }();
+}
+
 Map<String, Map<String, String>?> _atHistIso(List<String> a) {
   final doc = hp.parse(a[0]);
   final atId = a[1];
@@ -1253,7 +1280,7 @@ Map<String, Map<String, String>?> _atHistIso(List<String> a) {
           'sh': g(iH),
           'kn': kn,
           'v': video(g(iT)),
-          'tk': iTk >= 0 && iTk < td.length ? _takiCikar(td[iTk], '', null).map((e) => e.k).join(',') : '?',
+          'tk': iTk >= 0 && iTk < td.length ? _takiHucreTk(td[iTk]) : '?',
         };
       }
       if (out['gal'] == null && iS >= 0 && RegExp(r'^1\b').hasMatch(g(iS))) {
@@ -1757,7 +1784,7 @@ List<Map<String, String>> _atPastIso(List<String> a) {
         'd': g(iD),
         'hp': g(iHp),
         'g': g(iG).replaceAll(RegExp(r'[^\d.,]'), ''),
-        'tk': iTk >= 0 && iTk < td.length ? _takiCikar(td[iTk], '', null).map((e) => e.k).join(',') : '?',
+        'tk': iTk >= 0 && iTk < td.length ? _takiHucreTk(td[iTk]) : '?',
         'v': v,
       });
     }
