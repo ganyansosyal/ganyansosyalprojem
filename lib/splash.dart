@@ -196,43 +196,26 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             ]),
           ),
           SafeArea(
-            child: Column(children: [
-              const SizedBox(height: 34),
+            // Kısa ekranlarda taşma olmasın: içerik en az 620 yükseklikte kurulur, ekran kısaysa bütün olarak küçülür.
+            child: LayoutBuilder(builder: (context, cons) {
+              final h = cons.maxHeight < 620 ? 620.0 : cons.maxHeight;
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: cons.maxWidth,
+                  height: h,
+                  child: Column(children: [
+              const SizedBox(height: 64),
               _reveal(
                 0,
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text('Ganyan', style: jakarta(28, FontWeight.w800, _white, ls: -.8)),
-                  Text('Sosyal', style: jakarta(28, FontWeight.w800, _mint, ls: -.8)),
+                  Text('Ganyan', style: jakarta(34, FontWeight.w800, _white, ls: -1)),
+                  Text('Sosyal', style: jakarta(34, FontWeight.w800, _mint, ls: -1)),
                 ]),
               ),
-              const Spacer(),
+              const Spacer(flex: 10),
               RepaintBoundary(child: _cards()),
-              const SizedBox(height: 26),
-              _reveal(
-                1000,
-                Text.rich(
-                  TextSpan(children: [
-                    TextSpan(text: 'Tahminini paylaş,\n', style: jakarta(26, FontWeight.w800, _white, ls: -.6).copyWith(height: 1.2)),
-                    TextSpan(text: 'yarışa katıl', style: jakarta(26, FontWeight.w800, _mint, ls: -.6).copyWith(height: 1.2)),
-                  ]),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _reveal(
-                1200,
-                ValueListenableBuilder<double>(
-                  valueListenable: _shown,
-                  builder: (_, v, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    _chip('Tahmin et', v >= .30),
-                    const SizedBox(width: 8),
-                    _chip('Paylaş', v >= .60),
-                    const SizedBox(width: 8),
-                    _chip('Yarış', v >= .90),
-                  ]),
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(height: 18),
               _reveal(
                 1400,
                 Padding(
@@ -266,8 +249,44 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 22),
+              _reveal(
+                1000,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: 'Tahminini paylaş, ', style: jakarta(24, FontWeight.w800, _white, ls: -.6)),
+                        TextSpan(text: 'yarışa katıl', style: jakarta(24, FontWeight.w800, _mint, ls: -.6)),
+                      ]),
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _reveal(
+                1200,
+                ValueListenableBuilder<double>(
+                  valueListenable: _shown,
+                  builder: (_, v, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    _chip('Tahmin et', v >= .30),
+                    const SizedBox(width: 8),
+                    _chip('Paylaş', v >= .60),
+                    const SizedBox(width: 8),
+                    _chip('Yarış', v >= .90),
+                  ]),
+                ),
+              ),
+              const Spacer(flex: 17),
+              const SizedBox(height: 30),
             ]),
+                ),
+              );
+            }),
           ),
         ]),
       ),
