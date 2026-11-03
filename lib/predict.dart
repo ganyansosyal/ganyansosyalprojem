@@ -14,6 +14,7 @@ import 'settle.dart';
 import 'horse_watch.dart';
 import 'theme.dart';
 import 'tjk.dart';
+import 'tour.dart';
 
 /// Gün yüklenirken dolum çubuğu + adımlar (Sonuçlar ve Tahmin Yap ortak kullanır).
 /// progress: Tjk.progress (Şehirler 0-.2, Program .2-.6, son adım .6-1).
@@ -1494,16 +1495,22 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
               ),
               // Takip atı: koşmaya hazır olunca zile bildirim gelir
               ListenableBuilder(
-                listenable: HorseWatch.i,
+                listenable: Listenable.merge([HorseWatch.i, Tour.step]),
                 builder: (_, __) {
                   final fw = HorseWatch.i.isFollowing(h.name);
+                  // Rehber: listedeki ilk atın yıldızı vurgulanır
+                  final r0 = s.race(_city, _race);
+                  final tourStar = Tour.step.value == TourStep.star && r0 != null && r0.atlar.isNotEmpty && identical(h, r0.atlar.first);
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
                       final m = await showHorseNoteSheet(context, h.name, h.atId);
                       if (m != null) _toast(m);
+                      // Rehber: takip atı penceresi kapanınca sonraki adıma geç
+                      Tour.advance(TourStep.star);
                     },
                     child: Padding(
+                      key: tourStar ? Tour.kStar : null,
                       padding: const EdgeInsets.only(right: 4),
                       child: Icon(fw ? Icons.star_rounded : Icons.star_border_rounded, size: 22, color: fw ? c.gold : c.mu),
                     ),

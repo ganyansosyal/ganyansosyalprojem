@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'frames.dart';
 
 import 'theme.dart';
+import 'tour.dart';
 
 const handleMin = 3, handleMax = 20, nameMax = 30;
 
@@ -384,6 +385,7 @@ class AuthService {
       if (await handleTaken(handle)) throw AuthException(_taken(handle));
       final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       final user = cred.user!;
+      await Tour.markPending(user.uid); // ilk açılışta rehber göster
       try {
         final ok = await _createProfile(user.uid, name, handle, email, photo);
         if (!ok) throw AuthException(_taken(handle));
@@ -428,7 +430,10 @@ class AuthService {
       final cred = GoogleAuthProvider.credential(idToken: idToken);
       final uc = await _auth.signInWithCredential(cred);
       final user = uc.user!;
-      if (await loadProfile(user.uid) == null) await _ensureProfile(user);
+      if (await loadProfile(user.uid) == null) {
+        await Tour.markPending(user.uid); // yeni Google hesabı: rehber göster
+        await _ensureProfile(user);
+      }
       return true;
     } catch (e) {
       throw AuthException(errorText(e));

@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'auth_service.dart';
 import 'levelplay_ads.dart';
 import 'theme.dart';
+import 'tour.dart';
 
 /* =====================================================================
    KREDİ SİSTEMİ
@@ -167,6 +168,7 @@ class CreditChip extends StatelessWidget {
     return StreamBuilder<int>(
       stream: Credits.watch(uid),
       builder: (_, snap) => Container(
+        key: Tour.kCredit,
         height: 34,
         padding: const EdgeInsets.fromLTRB(4, 0, 3, 0),
         decoration: BoxDecoration(

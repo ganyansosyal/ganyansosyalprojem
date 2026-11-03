@@ -16,6 +16,7 @@ import 'preload.dart';
 import 'results.dart';
 import 'settle.dart';
 import 'theme.dart';
+import 'tour.dart';
 import 'update_check.dart';
 import 'user_search.dart';
 
@@ -120,6 +121,10 @@ class _ShellState extends State<Shell> {
     }
     feedTarget.addListener(_toFeed);
     predictJump.addListener(_toPredict);
+    // Yeni kayıt olduysa ilk açılışta rehber başlasın
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Tour.maybeStart(context, u);
+    });
   }
 
   // Bildirimden bir kupona gidilirken akış sekmesine geç
@@ -136,6 +141,7 @@ class _ShellState extends State<Shell> {
   void dispose() {
     feedTarget.removeListener(_toFeed);
     predictJump.removeListener(_toPredict);
+    Tour.abort();
     HorseWatch.i.stop();
     Settler.stop();
     super.dispose();
@@ -321,6 +327,7 @@ class _ShellState extends State<Shell> {
               child: GestureDetector(
                 onTap: () => setState(() => _tab = 2),
                 child: AnimatedContainer(
+                  key: Tour.kFab,
                   duration: const Duration(milliseconds: 200),
                   width: 58,
                   height: 58,
@@ -446,7 +453,7 @@ class TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          IconBox(icon: Icons.menu, onTap: onMenu),
+          KeyedSubtree(key: Tour.kMenu, child: IconBox(icon: Icons.menu, onTap: onMenu)),
           const SizedBox(width: 10),
           GestureDetector(onLongPress: () => perfOverlay.value = !perfOverlay.value, child: const Brand(size: 19)),
           const SizedBox(width: 10),
@@ -658,10 +665,13 @@ class AppDrawer extends StatelessWidget {
               ),
               ),
               const SizedBox(height: 14),
-              _GreenDrawerCard(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
-              }),
+              KeyedSubtree(
+                key: Tour.kHorses,
+                child: _GreenDrawerCard(icon: Icons.star_border_rounded, label: 'Takip atları', onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowedHorsesPage()));
+                }),
+              ),
               const SizedBox(height: 10),
               _GreenDrawerCard(icon: Icons.groups_outlined, label: 'Beraber koşular', onTap: () {
                 Navigator.of(context).pop();
