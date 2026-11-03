@@ -1098,6 +1098,33 @@ class TjkStore extends ChangeNotifier {
 
 /// Koşu video sayfasından (veya doğrudan mp4 bağlantısından) oynatılabilir mp4 adresini bulur.
 Future<String?> getVideoMp4(String url, String iso) async {
+  final full = await _getVideoMp4Full(url, iso);
+  if (full == null) return null;
+  return mobileMp4(full);
+}
+
+/// TJK'nın tam boyutlu (1080p, ~100 MB) videosu yerine mobil sürümünü (_m.mp4, ~20-25 MB) seçer.
+/// Mobil dosya sunucuda yoksa (HEAD 200/206 dönmezse) ya da hata olursa orijinal adres kullanılır.
+final Map<String, String> _mobMem = {};
+final RegExp _mp4Tail = RegExp(r'\.mp4(\?.*)?$', caseSensitive: false);
+
+Future<String> mobileMp4(String u) async {
+  if (!u.contains('video-cdn.tjk.org')) return u;
+  if (RegExp(r'_m\.mp4(\?.*)?$', caseSensitive: false).hasMatch(u)) return u;
+  if (!_mp4Tail.hasMatch(u)) return u;
+  final c = _mobMem[u];
+  if (c != null) return c;
+  final m = u.replaceFirstMapped(_mp4Tail, (x) => '_m.mp4${x.group(1) ?? ''}');
+  var pick = u;
+  try {
+    final r = await http.head(Uri.parse(m)).timeout(const Duration(seconds: 6));
+    if (r.statusCode == 200 || r.statusCode == 206) pick = m;
+  } catch (_) {}
+  _mobMem[u] = pick;
+  return pick;
+}
+
+Future<String?> _getVideoMp4Full(String url, String iso) async {
   if (RegExp(r'\.mp4(\?|$)', caseSensitive: false).hasMatch(url)) {
     return url.startsWith('//') ? 'https:$url' : url;
   }
@@ -1132,7 +1159,7 @@ Future<String?> getIdmanMp4(Horse h, String iso) async {
     final u = 'https://video-cdn.tjk.org/videoftp/idmanpisti/${dt.year}/${dt.month.toString().padLeft(2, '0')}/${h.idmK}-${h.idmA}.mp4';
     try {
       final r = await http.head(Uri.parse(u)).timeout(const Duration(seconds: 8));
-      if (r.statusCode == 200) return u;
+      if (r.statusCode == 200) return await mobileMp4(u);
     } catch (_) {}
   }
   return null;
