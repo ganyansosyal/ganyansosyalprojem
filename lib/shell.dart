@@ -409,46 +409,8 @@ class _ShellState extends State<Shell> {
                             BoxShadow(color: const Color(0xFF0E9F73).withAlpha(100), blurRadius: _chatDrag ? 20 : 14, offset: const Offset(0, 5)),
                           ],
                         ),
-                        // İki üst üste konuşma balonu: arkadaki yarı saydam, öndeki beyaz ve üç noktalı
-                        child: SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                right: 0,
-                                top: 1,
-                                child: Transform.flip(
-                                  flipX: true,
-                                  child: Icon(Icons.chat_bubble_rounded, color: Colors.white.withAlpha(120), size: 21),
-                                ),
-                              ),
-                              Positioned(
-                                left: 0,
-                                bottom: 0,
-                                child: Stack(
-                                  alignment: const Alignment(0, -0.25),
-                                  children: [
-                                    const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 25),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        for (var i = 0; i < 3; i++)
-                                          Container(
-                                            width: 3.4,
-                                            height: 3.4,
-                                            margin: const EdgeInsets.symmetric(horizontal: 1.2),
-                                            decoration: const BoxDecoration(color: Color(0xFF0E9F73), shape: BoxShape.circle),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // Yuvarlak sohbet balonu + üç nokta (elle çizildi, yazı tipi ikonu değil)
+                        child: const Center(child: CustomPaint(size: Size(30, 30), painter: _ChatBubblePainter())),
                       ),
                     ),
                   ),
@@ -847,4 +809,32 @@ class _GreenDrawerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Sohbet butonu ikonu: yuvarlak konuşma balonu, içinde üç nokta. 32x32 tasarım alanından ölçeklenir.
+class _ChatBubblePainter extends CustomPainter {
+  const _ChatBubblePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 32, size.height / 32);
+    final bubble = Path()
+      ..moveTo(16, 3)
+      ..cubicTo(8.8, 3, 3, 8.2, 3, 14.6)
+      ..cubicTo(3, 17.9, 4.5, 20.8, 7, 22.9)
+      ..cubicTo(6.8, 24.9, 6.1, 26.6, 4.8, 28.1)
+      ..cubicTo(7.6, 28.0, 9.8, 27.1, 11.6, 25.6)
+      ..cubicTo(12.8, 25.9, 14.1, 26.1, 15.5, 26.1)
+      ..cubicTo(22.7, 26.1, 28.5, 20.9, 28.5, 14.5)
+      ..cubicTo(28.5, 8.1, 23.2, 3, 16, 3)
+      ..close();
+    canvas.drawPath(bubble, Paint()..color = Colors.white..isAntiAlias = true);
+    final dot = Paint()..color = const Color(0xFF0E9F73)..isAntiAlias = true;
+    for (final x in [11.0, 16.0, 21.0]) {
+      canvas.drawCircle(Offset(x, 14.5), 1.9, dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
