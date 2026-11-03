@@ -313,15 +313,15 @@ class _ShellState extends State<Shell> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: bottom + 33,
+            bottom: bottom + 36,
             child: Center(
               child: GestureDetector(
                 onTap: () => setState(() => _tab = 2),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 70,
-                  height: 70,
-                  padding: const EdgeInsets.all(4),
+                  width: 58,
+                  height: 58,
+                  padding: const EdgeInsets.all(3.5),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: c.sf,
@@ -339,7 +339,7 @@ class _ShellState extends State<Shell> {
                         colors: [Color(0xFF34D399), Color(0xFF0E9F73)],
                       ),
                     ),
-                    child: const Icon(Icons.confirmation_number_outlined, color: Colors.white, size: 31),
+                    child: const Icon(Icons.confirmation_number_outlined, color: Colors.white, size: 25),
                   ),
                 ),
               ),
