@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
@@ -47,48 +44,10 @@ Future<void> showRaceFilm(
   );
 }
 
-
-/// Videoyu bir kez telefona indirir (aynı dosya en fazla 1 kez iner), oynatıcı yerelden oynatır.
-/// Böylece oynatıcının aynı mp4'ü tekrar tekrar çekmesi (150-200 MB) engellenir.
-/// İndirme başarısız olursa doğrudan ağdan oynatmaya düşer.
-Future<VideoPlayerController> _filmController(String url) async {
-  try {
-    final dir = Directory('${(await getTemporaryDirectory()).path}/film_cache');
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    // Eski videoları temizle: 1 günden eski veya 5'ten fazla dosya
-    try {
-      final fs = dir.listSync().whereType<File>().toList()..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-      for (var i = 0; i < fs.length; i++) {
-        if (i >= 5 || DateTime.now().difference(fs[i].lastModifiedSync()).inHours > 24) fs[i].deleteSync();
-      }
-    } catch (_) {}
-    final name = '${url.hashCode.toUnsigned(32)}.mp4';
-    final f = File('${dir.path}/$name');
-    if (!f.existsSync() || f.lengthSync() < 1024) {
-      final tmp = File('${f.path}.part');
-      final c = http.Client();
-      try {
-        final res = await c.send(http.Request('GET', Uri.parse(url))).timeout(const Duration(seconds: 30));
-        if (res.statusCode != 200) throw 'http ${res.statusCode}';
-        final sink = tmp.openWrite();
-        await sink.addStream(res.stream.timeout(const Duration(seconds: 30)));
-        await sink.close();
-        await tmp.rename(f.path);
-      } finally {
-        c.close();
-        if (tmp.existsSync()) tmp.deleteSync();
-      }
-    }
-    return VideoPlayerController.file(f);
-  } catch (_) {
-    return VideoPlayerController.networkUrl(Uri.parse(url));
-  }
-}
-
 /// Videoyu doğrudan YATAY TAM EKRANDA açar (alt panel yok). Kullanıcı kendisi kapatır.
 /// Video hazır olunca açılır; hata olursa istisna fırlatır (çağıran yer mesaj gösterir).
 Future<void> showFullVideo(BuildContext context, String url) async {
-  final v = await _filmController(url);
+  final v = VideoPlayerController.networkUrl(Uri.parse(url));
   try {
     await v.initialize();
   } catch (e) {
@@ -122,9 +81,7 @@ class _FilmSheet extends StatefulWidget {
 }
 
 class _FilmSheetState extends State<_FilmSheet> {
-  // Yer tutucu; asıl oynatıcı video indirilince (yerel dosyadan) oluşturulur
-  VideoPlayerController _v = VideoPlayerController.networkUrl(Uri.parse('about:blank'));
-  bool _dead = false;
+  late final VideoPlayerController _v = VideoPlayerController.networkUrl(Uri.parse(widget.url));
   double _speed = 1;
   bool _err = false;
   List<FilmRow> _rows = const [];
@@ -163,28 +120,15 @@ class _FilmSheetState extends State<_FilmSheet> {
   void initState() {
     super.initState();
     _rows = widget.rows;
+    _v.addListener(_tick);
     if (widget.loader != null && _rows.isEmpty) _load();
-    _start();
-  }
-
-  Future<void> _start() async {
-    try {
-      final c = await _filmController(widget.url);
-      if (_dead) {
-        await c.dispose();
-        return;
-      }
-      final old = _v;
-      _v = c;
-      old.dispose();
-      c.addListener(_tick);
-      await c.initialize();
+    _v.initialize().then((_) {
       if (!mounted) return;
       setState(() {});
-      c.play();
-    } catch (_) {
+      _v.play();
+    }).catchError((_) {
       if (mounted) setState(() => _err = true);
-    }
+    });
   }
 
   void _tick() {
@@ -193,7 +137,6 @@ class _FilmSheetState extends State<_FilmSheet> {
 
   @override
   void dispose() {
-    _dead = true;
     _v.removeListener(_tick);
     _v.dispose();
     super.dispose();
