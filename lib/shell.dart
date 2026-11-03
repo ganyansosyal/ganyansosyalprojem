@@ -157,74 +157,121 @@ class _ShellState extends State<Shell> {
                     ],
                   ),
                   child: LayoutBuilder(builder: (context, cs) {
-                    const mid = 78.0;
-                    final side = (cs.maxWidth - mid) / 2;
+                    final w = cs.maxWidth;
+                    final scaler = MediaQuery.textScalerOf(context);
+                    double tw(String s) {
+                      final tp = TextPainter(
+                        text: TextSpan(text: s, style: jakarta(12, FontWeight.w800, Colors.black)),
+                        textDirection: TextDirection.ltr,
+                        textScaler: scaler,
+                        maxLines: 1,
+                      )..layout();
+                      return tp.width;
+                    }
+
+                    // Yazı genişliklerine göre tüm boşluklar (g) eşit tutulur; Tahmin Yap tam ortada
+                    final a = tw('Akış'), l = tw('Liderler'), m = tw('Tahmin Yap'), sn = tw('Sonuçlar'), p = tw('Profil');
+                    final half = w / 2 - m / 2;
+                    final g = ((((half - a - l) / 3) + ((half - sn - p) / 3)) / 2).clamp(4.0, 80.0);
+                    final lc = w / 2 - m / 2 - g - l / 2;
+                    final ac = lc - l / 2 - g - a / 2;
+                    final sc = w / 2 + m / 2 + g + sn / 2;
+                    final pc = sc + sn / 2 + g + p / 2;
                     double cx(int t) {
                       switch (t) {
                         case 0:
-                          return side * 0.5;
+                          return ac;
                         case 1:
-                          return side * 1.5;
+                          return lc;
                         case 3:
-                          return side + mid + side * 0.5;
+                          return sc;
                         default:
-                          return side + mid + side * 1.5;
+                          return pc;
                       }
                     }
 
-                    return Stack(
-                      children: [
-                        // Tek parça yeşil kutu: sekmeler arasında kayar, sonunda hafif yaylanır
-                        AnimatedPositioned(
-                          duration: const Duration(milliseconds: 420),
-                          curve: Curves.easeOutBack,
-                          left: cx(_pillTab) - 27,
-                          top: 0,
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: _tab == 2 ? 0 : 1,
-                            child: Container(
-                              width: 54,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                gradient: const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)]),
-                                boxShadow: const [BoxShadow(color: Color(0x520E9F73), blurRadius: 8, offset: Offset(0, 3))],
+                    return SizedBox(
+                      width: w,
+                      height: 57,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Tek parça yeşil kutu: sekmeler arasında kayar, sonunda hafif yaylanır
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 420),
+                            curve: Curves.easeOutBack,
+                            left: cx(_pillTab) - 27,
+                            top: 0,
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: _tab == 2 ? 0 : 1,
+                              child: Container(
+                                width: 54,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  gradient: const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)]),
+                                  boxShadow: const [BoxShadow(color: Color(0x520E9F73), blurRadius: 8, offset: Offset(0, 3))],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _NavItem(icon: Icons.home_outlined, label: 'Akış', on: _tab == 0, onTap: () {
+                          Positioned(
+                            left: ac - 27,
+                            top: 0,
+                            width: 54,
+                            child: _NavItem(icon: Icons.home_outlined, label: 'Akış', on: _tab == 0, onTap: () {
                               if (_tab == 0) {
                                 feedScrollTop.value++;
                               } else {
                                 setState(() => _tab = 0);
                               }
                             }),
-                            _NavItem(icon: Icons.emoji_events_outlined, label: 'Liderler', on: _tab == 1, onTap: () => setState(() => _tab = 1)),
-                            SizedBox(
-                              width: mid,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () => setState(() => _tab = 2),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(height: 41),
-                                    Text('Tahmin Yap',
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        overflow: TextOverflow.visible,
-                                        style: jakarta(12, _tab == 2 ? FontWeight.w800 : FontWeight.w700, _tab == 2 ? c.ac : c.mu)),
-                                  ],
-                                ),
+                          ),
+                          Positioned(
+                            left: lc - 27,
+                            top: 0,
+                            width: 54,
+                            child: _NavItem(icon: Icons.emoji_events_outlined, label: 'Liderler', on: _tab == 1, onTap: () => setState(() => _tab = 1)),
+                          ),
+                          Positioned(
+                            left: w / 2 - 39,
+                            top: 0,
+                            width: 78,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() => _tab = 2),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 41),
+                                  SizedBox(
+                                    width: 78,
+                                    height: 16,
+                                    child: OverflowBox(
+                                      maxWidth: 120,
+                                      child: Text('Tahmin Yap',
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.visible,
+                                          style: jakarta(12, _tab == 2 ? FontWeight.w800 : FontWeight.w700, _tab == 2 ? c.ac : c.mu)),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            _NavItem(icon: Icons.flag_outlined, label: 'Sonuçlar', on: _tab == 3, onTap: () => setState(() => _tab = 3)),
-                            _NavItem(
+                          ),
+                          Positioned(
+                            left: sc - 27,
+                            top: 0,
+                            width: 54,
+                            child: _NavItem(icon: Icons.flag_outlined, label: 'Sonuçlar', on: _tab == 3, onTap: () => setState(() => _tab = 3)),
+                          ),
+                          Positioned(
+                            left: pc - 27,
+                            top: 0,
+                            width: 54,
+                            child: _NavItem(
                               icon: Icons.person_outline,
                               label: 'Profil',
                               on: _tab == 4,
@@ -242,9 +289,9 @@ class _ShellState extends State<Shell> {
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     );
                   }),
                 ),
@@ -429,33 +476,38 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final fg = on ? c.ac : c.mu;
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Yeşil zemin artık burada değil, barda tek parça olarak kayıyor
-            SizedBox(
-              width: 54,
-              height: 36,
-              child: Center(
-                child: iconWidget ??
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(icon, key: ValueKey(on), size: 26, color: on ? Colors.white : fg),
-                    ),
-              ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Yeşil zemin artık burada değil, barda tek parça olarak kayıyor
+          SizedBox(
+            width: 54,
+            height: 36,
+            child: Center(
+              child: iconWidget ??
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(icon, key: ValueKey(on), size: 26, color: on ? Colors.white : fg),
+                  ),
             ),
-            const SizedBox(height: 5),
-            Text(label,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.visible,
-                style: jakarta(12, on ? FontWeight.w800 : FontWeight.w700, fg)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 5),
+          SizedBox(
+            width: 54,
+            height: 16,
+            child: OverflowBox(
+              maxWidth: 90,
+              child: Text(label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                  style: jakarta(12, on ? FontWeight.w800 : FontWeight.w700, fg)),
+            ),
+          ),
+        ],
       ),
     );
   }

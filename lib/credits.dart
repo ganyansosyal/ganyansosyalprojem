@@ -175,13 +175,7 @@ class CreditChip extends StatelessWidget {
           border: Border.all(color: c.ac.withAlpha(100), width: 0.8),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(color: c.ac, shape: BoxShape.circle),
-            child: Icon(Icons.monetization_on_outlined, size: 16, color: c.on),
-          ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 10),
           Text('${snap.data ?? Credits.welcome}', style: jakarta(14, FontWeight.w800, c.ac)),
           const SizedBox(width: 6),
           GestureDetector(
