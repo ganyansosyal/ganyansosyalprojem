@@ -28,6 +28,27 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   final GlobalKey<ScaffoldState> _key = GlobalKey<ScaffoldState>();
   int _tab = 0;
+  final _navKeys = List.generate(5, (_) => GlobalKey());
+  final _navStackKey = GlobalKey();
+  final List<double?> _navCx = List.filled(5, null);
+
+  void _measureNav() {
+    if (!mounted) return;
+    final sb = _navStackKey.currentContext?.findRenderObject();
+    if (sb is! RenderBox || !sb.hasSize) return;
+    var changed = false;
+    for (final t in [0, 1, 3, 4]) {
+      final rb = _navKeys[t].currentContext?.findRenderObject();
+      if (rb is! RenderBox || !rb.hasSize) continue;
+      final cx = sb.globalToLocal(rb.localToGlobal(Offset.zero)).dx + rb.size.width / 2;
+      if (_navCx[t] == null || (_navCx[t]! - cx).abs() > 0.5) {
+        _navCx[t] = cx;
+        changed = true;
+      }
+    }
+    if (changed) setState(() {});
+  }
+
   int _pillTab = 0; // yeşil kutunun son durduğu sekme (Tahmin Yap'ta kutu gizlenir)
   final Set<int> _built = {0};
 
@@ -158,137 +179,103 @@ class _ShellState extends State<Shell> {
                   ),
                   child: LayoutBuilder(builder: (context, cs) {
                     final w = cs.maxWidth;
-                    final scaler = MediaQuery.textScalerOf(context);
-                    double tw(String s) {
-                      final tp = TextPainter(
-                        text: TextSpan(text: s, style: jakarta(12, FontWeight.w800, Colors.black)),
-                        textDirection: TextDirection.ltr,
-                        textScaler: scaler,
-                        maxLines: 1,
-                      )..layout();
-                      return tp.width;
-                    }
-
-                    // Yazı genişliklerine göre tüm boşluklar (g) eşit tutulur; Tahmin Yap tam ortada
-                    final a = tw('Akış'), l = tw('Liderler'), m = tw('Tahmin Yap'), sn = tw('Sonuçlar'), p = tw('Profil');
-                    final half = w / 2 - m / 2;
-                    final g = ((((half - a - l) / 3) + ((half - sn - p) / 3)) / 2).clamp(4.0, 80.0);
-                    final lc = w / 2 - m / 2 - g - l / 2;
-                    final ac = lc - l / 2 - g - a / 2;
-                    final sc = w / 2 + m / 2 + g + sn / 2;
-                    final pc = sc + sn / 2 + g + p / 2;
-                    double cx(int t) {
-                      switch (t) {
-                        case 0:
-                          return ac;
-                        case 1:
-                          return lc;
-                        case 3:
-                          return sc;
-                        default:
-                          return pc;
-                      }
-                    }
-
+                    // Boşluklar gerçek yazı genişliğinden Row ile eşit dağıtılır (ölçüm tahmini yok);
+                    // yeşil kutu ise ölçülen gerçek merkezlere kayar.
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _measureNav());
+                    final navLabels = ['Akış', 'Liderler', 'Sonuçlar', 'Profil'];
+                    Widget item(int t, IconData icon, VoidCallback onTap, {Widget? iconWidget}) => KeyedSubtree(
+                          key: _navKeys[t],
+                          child: _NavItem(icon: icon, label: t == 0 ? navLabels[0] : t == 1 ? navLabels[1] : t == 3 ? navLabels[2] : navLabels[3], on: _tab == t, onTap: onTap, iconWidget: iconWidget),
+                        );
+                    final pcx = _navCx[_pillTab];
                     return SizedBox(
                       width: w,
                       height: 57,
                       child: Stack(
+                        key: _navStackKey,
                         clipBehavior: Clip.none,
                         children: [
                           // Tek parça yeşil kutu: sekmeler arasında kayar, sonunda hafif yaylanır
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 420),
-                            curve: Curves.easeOutBack,
-                            left: cx(_pillTab) - 27,
-                            top: 0,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 200),
-                              opacity: _tab == 2 ? 0 : 1,
-                              child: Container(
-                                width: 54,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  gradient: const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)]),
-                                  boxShadow: const [BoxShadow(color: Color(0x520E9F73), blurRadius: 8, offset: Offset(0, 3))],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: ac - 27,
-                            top: 0,
-                            width: 54,
-                            child: _NavItem(icon: Icons.home_outlined, label: 'Akış', on: _tab == 0, onTap: () {
-                              if (_tab == 0) {
-                                feedScrollTop.value++;
-                              } else {
-                                setState(() => _tab = 0);
-                              }
-                            }),
-                          ),
-                          Positioned(
-                            left: lc - 27,
-                            top: 0,
-                            width: 54,
-                            child: _NavItem(icon: Icons.emoji_events_outlined, label: 'Liderler', on: _tab == 1, onTap: () => setState(() => _tab = 1)),
-                          ),
-                          Positioned(
-                            left: w / 2 - 39,
-                            top: 0,
-                            width: 78,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => setState(() => _tab = 2),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(height: 41),
-                                  SizedBox(
-                                    width: 78,
-                                    height: 16,
-                                    child: OverflowBox(
-                                      maxWidth: 120,
-                                      child: Text('Tahmin Yap',
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.visible,
-                                          style: jakarta(12, _tab == 2 ? FontWeight.w800 : FontWeight.w700, _tab == 2 ? c.ac : c.mu)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: sc - 27,
-                            top: 0,
-                            width: 54,
-                            child: _NavItem(icon: Icons.flag_outlined, label: 'Sonuçlar', on: _tab == 3, onTap: () => setState(() => _tab = 3)),
-                          ),
-                          Positioned(
-                            left: pc - 27,
-                            top: 0,
-                            width: 54,
-                            child: _NavItem(
-                              icon: Icons.person_outline,
-                              label: 'Profil',
-                              on: _tab == 4,
-                              onTap: () => setState(() => _tab = 4),
-                              iconWidget: ValueListenableBuilder<Profile?>(
-                                valueListenable: profileNotifier,
-                                builder: (context, p, _) => Container(
-                                  width: 32,
-                                  height: 32,
+                          if (pcx != null)
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 420),
+                              curve: Curves.easeOutBack,
+                              left: pcx - 27,
+                              top: 0,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _tab == 2 ? 0 : 1,
+                                child: Container(
+                                  width: 54,
+                                  height: 36,
                                   decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: _tab == 4 ? Colors.white : c.ln, width: 2),
+                                    borderRadius: BorderRadius.circular(14),
+                                    gradient: const LinearGradient(colors: [Color(0xFF34D399), Color(0xFF0E9F73)]),
+                                    boxShadow: const [BoxShadow(color: Color(0x520E9F73), blurRadius: 8, offset: Offset(0, 3))],
                                   ),
-                                  child: ClipOval(child: Avatar(profile: p, size: 28)),
                                 ),
                               ),
                             ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    item(0, Icons.home_outlined, () {
+                                      if (_tab == 0) {
+                                        feedScrollTop.value++;
+                                      } else {
+                                        setState(() => _tab = 0);
+                                      }
+                                    }),
+                                    item(1, Icons.emoji_events_outlined, () => setState(() => _tab = 1)),
+                                  ],
+                                ),
+                              ),
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => setState(() => _tab = 2),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 41),
+                                    Text('Tahmin Yap',
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        style: jakarta(12, _tab == 2 ? FontWeight.w800 : FontWeight.w700, _tab == 2 ? c.ac : c.mu)),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    item(3, Icons.flag_outlined, () => setState(() => _tab = 3)),
+                                    item(
+                                      4,
+                                      Icons.person_outline,
+                                      () => setState(() => _tab = 4),
+                                      iconWidget: ValueListenableBuilder<Profile?>(
+                                        valueListenable: profileNotifier,
+                                        builder: (context, p, _) => Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: _tab == 4 ? Colors.white : c.ln, width: 2),
+                                          ),
+                                          child: ClipOval(child: Avatar(profile: p, size: 28)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -479,35 +466,36 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Yeşil zemin artık burada değil, barda tek parça olarak kayıyor
-          SizedBox(
-            width: 54,
-            height: 36,
-            child: Center(
-              child: iconWidget ??
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(icon, key: ValueKey(on), size: 26, color: on ? Colors.white : fg),
+      child: IntrinsicWidth(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Yeşil zemin barda tek parça olarak kayıyor; ikon kutusu genişliği etkilemez,
+            // genişliği yazı belirler (boşluklar yazıdan yazıya eşit olur)
+            SizedBox(
+              height: 36,
+              child: OverflowBox(
+                maxWidth: 54,
+                child: SizedBox(
+                  width: 54,
+                  height: 36,
+                  child: Center(
+                    child: iconWidget ??
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(icon, key: ValueKey(on), size: 26, color: on ? Colors.white : fg),
+                        ),
                   ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 5),
-          SizedBox(
-            width: 54,
-            height: 16,
-            child: OverflowBox(
-              maxWidth: 90,
-              child: Text(label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.visible,
-                  style: jakarta(12, on ? FontWeight.w800 : FontWeight.w700, fg)),
-            ),
-          ),
-        ],
+            const SizedBox(height: 5),
+            Text(label,
+                maxLines: 1,
+                softWrap: false,
+                style: jakarta(12, on ? FontWeight.w800 : FontWeight.w700, fg)),
+          ],
+        ),
       ),
     );
   }
