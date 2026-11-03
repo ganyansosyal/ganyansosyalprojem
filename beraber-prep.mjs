@@ -177,8 +177,9 @@ function takiBol(s) {
 function takiListe(metin) {
   const out = [];
   for (const w of metin.split(/[\s,;/]+/)) {
-    if (TAKI_KOD.test(w)) out.push(w);
-    else { const p = takiBol(w); if (p) out.push(...p); }
+    const p = takiBol(w);
+    if (p) out.push(...p);
+    else if (TAKI_KOD.test(w)) out.push(w);
   }
   return out.join(',');
 }
