@@ -40,7 +40,7 @@ class _AuthGateState extends State<AuthGate> {
         builder: (_, busy, __) {
           final Widget page;
           if (snap.connectionState == ConnectionState.waiting) {
-            page = const _Loading(key: ValueKey('loading'));
+            page = const LaunchLoading(key: ValueKey('loading'));
           } else {
             final user = snap.data;
             page = (user == null || busy)
@@ -106,7 +106,7 @@ class _ProfileGateState extends State<_ProfileGate> {
             ],
           );
         }
-        return const _Loading();
+        return const LaunchLoading();
   }
 }
 
@@ -256,16 +256,6 @@ class _PhotoGateState extends State<_PhotoGate> {
         ),
       ),
     );
-  }
-}
-
-class _Loading extends StatelessWidget {
-  const _Loading({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return Scaffold(backgroundColor: c.bg, body: Center(child: CircularProgressIndicator(color: c.ac)));
   }
 }
 

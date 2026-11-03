@@ -247,12 +247,12 @@ class _AccessGateState extends State<AccessGate> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     if (!_banKnown) {
-      return Scaffold(backgroundColor: c.bg, body: Center(child: CircularProgressIndicator(color: c.ac)));
+      return const LaunchLoading();
     }
     if (banActive(_ban)) return BannedScreen(ban: _ban!);
     final maintOn = _maint?['on'] == true;
     if (maintOn && !_admin) {
-      if (!_adminKnown) return Scaffold(backgroundColor: c.bg, body: Center(child: CircularProgressIndicator(color: c.ac)));
+      if (!_adminKnown) return const LaunchLoading();
       return const MaintenanceScreen();
     }
     return Stack(children: [

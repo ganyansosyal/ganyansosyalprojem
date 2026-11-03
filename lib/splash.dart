@@ -37,12 +37,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     final dt = ((t - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
     _last = t;
     final real = Preload.progress.value;
-    // bitmediyse: gerçek ilerleme + küçük pay (adım arası akış), en çok %95; bitince hızlıca %100
+    // bitmediyse: gerçek ilerleme + küçük pay, en çok %95; bitince hızlıca %100.
+    // Üstel yumuşatma: hız hedefe yaklaştıkça yavaşlar, adım atlayınca zıplamaz, hiç geri gitmez.
     final limit = _loaded ? 1.0 : (real + 0.12).clamp(0.0, 0.95);
     var v = _shown.value;
     if (v < limit) {
-      final hiz = _loaded ? 3.0 : ((limit - v) * 1.2 + 0.04);
-      v = (v + hiz * dt).clamp(0.0, limit);
+      final k = _loaded ? 6.0 : 2.0;
+      v = (v + ((limit - v) * k + 0.03) * dt).clamp(0.0, limit);
       _shown.value = v;
     }
     if (_loaded && v >= 1.0 && _intro.isCompleted && !_left) {
@@ -192,12 +193,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text('Yükleniyor', style: jakarta(15, FontWeight.w500, const Color(0xE0F4FFF9))),
-                                Text('%${(v.clamp(0.0, 1.0) * 100).round()}',
-                                    style: jakarta(30, FontWeight.w800, gold, ls: -.6).copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                                _RollingPercent(v),
                               ],
                             ),
                           ),
@@ -220,6 +219,59 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           ),
         ]),
       ),
+    );
+  }
+}
+
+
+/// Yüzde sayacı: her hane sabit genişlikli bir sütun, rakamlar kayarak döner (kilometre sayacı gibi).
+/// Genişlik hiç değişmediği için sayı ve çubuk titremez.
+class _RollingPercent extends StatelessWidget {
+  final double v; // 0..1
+  const _RollingPercent(this.v);
+
+  static const _w = 19.0, _h = 34.0;
+  static double _ease(double f) => f * f * (3 - 2 * f);
+
+  Widget _col(double pos, List<String> cells, TextStyle st) {
+    return ClipRect(
+      child: SizedBox(
+        width: _w,
+        height: _h,
+        child: OverflowBox(
+          alignment: Alignment.topCenter,
+          minHeight: 0,
+          maxHeight: double.infinity,
+          child: Transform.translate(
+            offset: Offset(0, -pos * _h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [for (final c in cells) SizedBox(height: _h, child: Center(child: Text(c, style: st)))],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = jakarta(30, FontWeight.w800, const Color(0xFFF5C451), ls: -.6)
+        .copyWith(fontFeatures: const [FontFeature.tabularFigures()], height: 1.0);
+    final x = v.clamp(0.0, 1.0) * 100;
+    final fl = x.floor();
+    final e = _ease(x - fl);
+    final ones = (fl % 10) + e;
+    final tens = (fl ~/ 10) + (fl % 10 == 9 ? e : 0.0);
+    final hund = (fl ~/ 100) + (fl % 100 == 99 ? e : 0.0);
+    const d = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    return RepaintBoundary(
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        _col(hund, const ['', '1'], st),
+        _col(tens, const ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], st),
+        _col(ones, d, st),
+        Text('%', style: st),
+      ]),
     );
   }
 }

@@ -219,3 +219,25 @@ class KbInset extends StatelessWidget {
   Widget build(BuildContext context) =>
       Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: child);
 }
+
+
+/// Açılış sırasında (giriş / profil / erişim kontrolü) gösterilen bekleme ekranı:
+/// splash ile aynı koyu yeşil zemin, böylece splash'tan akışa geçişte açık renkli boş ekran yanıp sönmez.
+class LaunchLoading extends StatelessWidget {
+  const LaunchLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF073B2D),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(center: Alignment(0, -.25), radius: 1.1, colors: [Color(0xFF0B6A4E), Color(0xFF073B2D)], stops: [0, .75]),
+        ),
+        child: const Center(
+          child: SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 3, color: Color(0xFFF5C451))),
+        ),
+      ),
+    );
+  }
+}
