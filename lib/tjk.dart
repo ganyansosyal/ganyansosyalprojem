@@ -984,6 +984,13 @@ Future<void> pullLiveRes(String iso, String city) async {
 /* ---------------- Ortak durum ---------------- */
 
 /// Bugünün bülteni + sonuçları; Tahmin Yap, Sonuçlar ve kupon değerlendirme paylaşır.
+class _DayData {
+  final List<City> cities;
+  final Map<String, List<Race>> program;
+  final Map<String, Map<int, RaceResult>> results;
+  _DayData(this.cities, this.program, this.results);
+}
+
 class TjkStore extends ChangeNotifier {
   static final TjkStore i = TjkStore._();
   TjkStore._();
@@ -1024,9 +1031,38 @@ class TjkStore extends ChangeNotifier {
 
   List<int>? resOf(String city, int no) => results[city]?[no]?.sira;
 
+  // Her load() çağrısına bir numara verilir. Kullanıcı yükleme bitmeden başka güne/sayfaya geçerse
+  // eski yükleme DURDURULMAZ: arka planda bitirilir, ekrandaki durumu bozmadan önbelleğe yazılır.
+  // Geçmiş gün sonradan açılırsa anında gelir.
+  int _gen = 0;
+  final Map<String, _DayData> _dayCache = {};
+
   Future<void> load(String newIso) async {
+    final my = ++_gen;
+    bool live() => my == _gen; // hâlâ ekranda gösterilen yükleme bu mu?
+    final today = isoToday();
     // Aynı gün yenileniyorsa mevcut veriyi silme: ekran boşalıp baştan çizilmesin
     final keep = newIso == iso && cities.isNotEmpty;
+
+    // Daha önce (arka planda bile olsa) tamamen yüklenmiş geçmiş gün: bekletmeden aç
+    final hit = (!keep && newIso.compareTo(today) < 0) ? _dayCache[newIso] : null;
+    if (hit != null) {
+      iso = newIso;
+      cities = List.of(hit.cities);
+      program
+        ..clear()
+        ..addAll(hit.program);
+      results
+        ..clear()
+        ..addAll(hit.results);
+      error = null;
+      progress = 1;
+      loading = false;
+      notifyListeners();
+      _restartTimer();
+      return;
+    }
+
     iso = newIso;
     loading = !keep;
     progress = keep ? 1 : 0.04;
@@ -1037,46 +1073,87 @@ class TjkStore extends ChangeNotifier {
       results.clear();
     }
     notifyListeners();
+
+    final lIso = newIso;
+    final np = <String, List<Race>>{};
+    final lr = <String, Map<int, RaceResult>>{};
+    var shown = <City>[];
+    var ok = false;
     try {
-      final nc = await getCities(iso);
-      if (!keep) {
+      final nc = await getCities(lIso);
+      if (!keep && live()) {
         cities = nc;
         progress = 0.2;
         notifyListeners();
       }
-      final np = <String, List<Race>>{};
       var okN = 0;
       await Future.wait(nc.map((c) async {
         try {
-          np[c.name] = await getProgram(c, iso);
+          np[c.name] = await getProgram(c, lIso);
         } catch (_) {
           np[c.name] = keep ? (program[c.name] ?? []) : [];
         }
-        if (!keep) {
+        if (!keep && live()) {
           program[c.name] = np[c.name]!;
           okN++;
           progress = 0.2 + 0.4 * okN / (nc.isEmpty ? 1 : nc.length);
           notifyListeners();
         }
       }));
-      if (keep) program.addAll(np);
-      cities = nc.where((c) => (np[c.name] ?? []).isNotEmpty).toList();
-      if (cities.isEmpty) error = 'Bu tarih için koşu programı bulunamadı.';
-      // Geçmiş bir gün açılırken sonuçlar da gelene kadar çubuk görünsün (bugün: sonuçlar sonradan dolar, açılış gecikmesin)
-      if (!keep && isPast && cities.isNotEmpty) {
-        progress = 0.6;
-        notifyListeners();
-        await refreshResults();
+      shown = nc.where((c) => (np[c.name] ?? []).isNotEmpty).toList();
+      if (live()) {
+        if (keep) program.addAll(np);
+        cities = shown;
+        if (cities.isEmpty) error = 'Bu tarih için koşu programı bulunamadı.';
       }
+      // Geçmiş bir gün açılırken sonuçlar da gelene kadar çubuk görünsün (bugün: sonuçlar sonradan dolar, açılış gecikmesin).
+      // Kullanıcı bu sırada ayrılırsa da sonuçlar arka planda çekilmeye devam eder.
+      if (!keep && lIso.compareTo(today) < 0 && shown.isNotEmpty) {
+        if (live()) {
+          progress = 0.6;
+          notifyListeners();
+        }
+        await _fetchDayResults(lIso, shown, np, lr, live);
+      }
+      ok = true;
     } catch (e) {
-      if (!keep) error = e.toString().replaceFirst('Exception: ', '');
+      if (!keep && live()) error = e.toString().replaceFirst('Exception: ', '');
     }
+
+    // Tamamlanan geçmiş günü sakla (ekranda olsun olmasın)
+    if (ok && !keep && lIso.compareTo(today) < 0 && shown.isNotEmpty) {
+      _dayCache[lIso] = _DayData(shown, {for (final c in shown) c.name: np[c.name] ?? <Race>[]}, lr);
+    }
+
+    // Ekrandaki durumu yalnızca hâlâ güncel yükleme kapatır; eski yükleme sessizce biter.
+    if (!live()) return;
     progress = 1;
     loading = false;
     notifyListeners();
     refreshResults();
+    _restartTimer();
+  }
+
+  void _restartTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(minutes: 3), (_) => refreshResults());
+  }
+
+  /// Bir günün sonuçlarını, ekrandaki gün ne olursa olsun kendi tarihi için çeker.
+  /// Ekran hâlâ bu günü gösteriyorsa sonuçlar canlı olarak store'a da işlenir.
+  Future<void> _fetchDayResults(String lIso, List<City> cs, Map<String, List<Race>> np, Map<String, Map<int, RaceResult>> out, bool Function() live) async {
+    for (final c in cs) {
+      try {
+        final got = await getResults(c, lIso, np[c.name] ?? const <Race>[]);
+        out[c.name] = {...?out[c.name], ...got};
+        liveRes['$lIso|${c.name}'] = {for (final e in out[c.name]!.entries) e.key: e.value.sira};
+        liveResTick.value++;
+        if (live()) {
+          results[c.name] = {...?results[c.name], ...got};
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
   }
 
   bool _refreshing = false;
