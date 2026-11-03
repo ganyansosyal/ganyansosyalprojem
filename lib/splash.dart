@@ -22,9 +22,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late final Ticker _tick;
   Duration _last = Duration.zero;
 
-  static const _introMs = 1800.0; // tüm parçaların belirme süresi
-  static const _loadAt = 1400.0; // dolum bloğunun belirdiği an (ms)
-  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
+  static const _introMs = 3600.0; // tüm parçaların belirme süresi (sırayla, üst üste binmeden)
+  static const _loadAt = 3500.0; // dolum başlar: bloğun belirmesi (3000-3500ms) bittikten sonra
+  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 3600))..forward();
 
   @override
   void initState() {
@@ -107,7 +107,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           left: 112,
           top: 36,
           child: _reveal(
-            400,
+            500,
             Transform.rotate(
               angle: 0.12,
               child: Container(
@@ -126,7 +126,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           left: 22,
           top: 16,
           child: _reveal(
-            600,
+            1000,
             Transform.rotate(
               angle: -0.07,
               child: Container(
@@ -165,7 +165,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           right: 4,
           top: 0,
           child: _reveal(
-            800,
+            1500,
             Container(
               width: 42,
               height: 42,
@@ -217,7 +217,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               RepaintBoundary(child: _cards()),
               const SizedBox(height: 18),
               _reveal(
-                1400,
+                3000,
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: ValueListenableBuilder<double>(
@@ -251,7 +251,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 22),
               _reveal(
-                1000,
+                2000,
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: FittedBox(
@@ -269,7 +269,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 14),
               _reveal(
-                1200,
+                2500,
                 ValueListenableBuilder<double>(
                   valueListenable: _shown,
                   builder: (_, v, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -306,7 +306,8 @@ class _Reveal extends StatelessWidget {
         animation: a,
         child: child,
         builder: (_, ch) {
-          final o = ((a.value * _SplashPageState._introMs - at) / 300).clamp(0.0, 1.0);
+          final t = ((a.value * _SplashPageState._introMs - at) / 500).clamp(0.0, 1.0);
+          final o = Curves.easeOut.transform(t);
           return Opacity(opacity: o, child: ch);
         },
       );
