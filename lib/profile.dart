@@ -188,7 +188,7 @@ class _ProfileViewState extends State<ProfileView> {
                   children: [
                     Stack(
                       children: [
-                        Avatar(profile: Profile(uid: p.uid, name: name.text, handle: p.handle, photo: photo), size: 72),
+                        Avatar(profile: Profile(uid: p.uid, name: name.text, handle: p.handle, photo: photo), forcePhoto: photo, size: 72),
                         Positioned(
                           bottom: 0,
                           right: 0,

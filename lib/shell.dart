@@ -262,7 +262,9 @@ class _ShellState extends State<Shell> {
                               GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () => setState(() => _tab = 2),
-                                child: Column(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const SizedBox(height: 41),
@@ -271,6 +273,7 @@ class _ShellState extends State<Shell> {
                                         softWrap: false,
                                         style: jakarta(12, _tab == 2 ? FontWeight.w800 : FontWeight.w700, _tab == 2 ? c.ac : c.mu)),
                                   ],
+                                ),
                                 ),
                               ),
                               Expanded(
@@ -406,7 +409,46 @@ class _ShellState extends State<Shell> {
                             BoxShadow(color: const Color(0xFF0E9F73).withAlpha(100), blurRadius: _chatDrag ? 20 : 14, offset: const Offset(0, 5)),
                           ],
                         ),
-                        child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 25),
+                        // İki üst üste konuşma balonu: arkadaki yarı saydam, öndeki beyaz ve üç noktalı
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                right: 0,
+                                top: 1,
+                                child: Transform.flip(
+                                  flipX: true,
+                                  child: Icon(Icons.chat_bubble_rounded, color: Colors.white.withAlpha(120), size: 21),
+                                ),
+                              ),
+                              Positioned(
+                                left: 0,
+                                bottom: 0,
+                                child: Stack(
+                                  alignment: const Alignment(0, -0.25),
+                                  children: [
+                                    const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 25),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (var i = 0; i < 3; i++)
+                                          Container(
+                                            width: 3.4,
+                                            height: 3.4,
+                                            margin: const EdgeInsets.symmetric(horizontal: 1.2),
+                                            decoration: const BoxDecoration(color: Color(0xFF0E9F73), shape: BoxShape.circle),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -529,13 +571,16 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: IntrinsicWidth(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: IntrinsicWidth(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Yeşil zemin barda tek parça olarak kayıyor; ikon kutusu genişliği etkilemez,
             // genişliği yazı belirler (boşluklar yazıdan yazıya eşit olur)
             SizedBox(
+              width: 0, // ikon kutusu genişliğe katılmaz: öğe genişliği = yazı genişliği
               height: 36,
               child: OverflowBox(
                 maxWidth: 54,
@@ -558,6 +603,7 @@ class _NavItem extends StatelessWidget {
                 softWrap: false,
                 style: jakarta(12, on ? FontWeight.w800 : FontWeight.w700, fg)),
           ],
+        ),
         ),
       ),
     );

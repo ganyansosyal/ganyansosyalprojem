@@ -180,7 +180,9 @@ class Avatar extends StatefulWidget {
   final double size;
   /// Verilirse canlı/profil çerçevesi yerine bu çerçeve çizilir (önizleme için).
   final String? forceFrame;
-  const Avatar({super.key, required this.profile, this.size = 40, this.forceFrame});
+  /// Verilirse canlı fotoğraf yerine bu fotoğraf çizilir (düzenleme ekranında seçilen yeni fotoğraf, kaydetmeden önizleme).
+  final String? forcePhoto;
+  const Avatar({super.key, required this.profile, this.size = 40, this.forceFrame, this.forcePhoto});
 
   @override
   State<Avatar> createState() => _AvatarState();
@@ -193,6 +195,7 @@ class _AvatarState extends State<Avatar> {
 
   // Canlı fotoğraf varsa o, yoksa verilen profilin fotoğrafı
   String _eff() {
+    if (widget.forcePhoto != null) return widget.forcePhoto!;
     final uid = widget.profile?.uid ?? '';
     final live = uid.isEmpty ? null : _LiveUsers.photo[uid];
     return live ?? (widget.profile?.photo ?? '');
