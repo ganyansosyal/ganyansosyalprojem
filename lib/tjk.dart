@@ -412,8 +412,7 @@ String _takiHucreTk(Element td) {
 
 List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element? atLinki) {
   final out = <({String k, String a})>[];
-  void ekle(String k, String a) {
-    k = k.replaceAll(RegExp(r'\s+'), '');
+  void ekleTek(String k, String a) {
     if (!_takiKod.hasMatch(k)) return;
     a = a.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (a.isNotEmpty && takiAnlamCache[k] != a) {
@@ -426,6 +425,15 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
       return;
     }
     out.add((k: k, a: a));
+  }
+
+  void ekle(String k, String a) {
+    k = k.replaceAll(RegExp(r'\s+'), '');
+    // "KGK", "DBSK", "KGDB" gibi bitişik kodlar tek tek takıya bölünür (açıklama sadece tek kodda kalır)
+    final parts = _takiBol(k) ?? [k];
+    for (final p in parts) {
+      ekleTek(p, parts.length == 1 ? a : '');
+    }
   }
 
   if (hucre != null) {
@@ -470,12 +478,12 @@ List<({String k, String a})> _takiCikar(Element? hucre, String isimHam, Element?
     }
     final kodlar = <String>[];
     for (final w in _clean(hucre.text).split(RegExp(r'[\s,;/]+'))) {
-      if (_takiKod.hasMatch(w)) {
+      // "KGK", "KGDBSK" gibi birleşik yazılmış kodlar: önce bilinen takılara böl
+      final p = _takiBol(w);
+      if (p != null) {
+        kodlar.addAll(p);
+      } else if (_takiKod.hasMatch(w)) {
         kodlar.add(w);
-      } else {
-        // "KGDBSK" gibi birleşik yazılmış kodlar: bilinen takılara böl
-        final p = _takiBol(w);
-        if (p != null) kodlar.addAll(p);
       }
     }
     for (final w in kodlar) {
@@ -1668,7 +1676,7 @@ Future<List<AtPast>> getAtPast(String atId) {
 /// Atın geçmişi telefonda küçük bir JSON dosyası olarak saklanır (HTML'i yeniden ayrıştırmak gerekmez → uygulama kapatılıp açılsa da anında gelir).
 /// 12 saatten eskiyse yine hemen eski veri gösterilir, yenisi arka planda çekilir (stale-while-revalidate).
 Future<File?> _pastFile(String atId) async {
-  final f = await _diskFile('past-v2|$atId');
+  final f = await _diskFile('past-v3|$atId');
   return f == null ? null : File('${f.path}.json');
 }
 
