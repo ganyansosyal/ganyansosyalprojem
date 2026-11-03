@@ -1005,6 +1005,9 @@ class TjkStore extends ChangeNotifier {
   String? error;
   Timer? _timer;
 
+  /// En az bir hipodromun koşuları gelmiş mi (bülten gerçekten hazır mı)
+  bool get hasRaces => cities.any((c) => (program[c.name] ?? const <Race>[]).isNotEmpty);
+
   bool get isToday => iso == isoToday();
   bool get isPast => iso.compareTo(isoToday()) < 0;
 
@@ -1042,7 +1045,8 @@ class TjkStore extends ChangeNotifier {
     bool live() => my == _gen; // hâlâ ekranda gösterilen yükleme bu mu?
     final today = isoToday();
     // Aynı gün yenileniyorsa mevcut veriyi silme: ekran boşalıp baştan çizilmesin
-    final keep = newIso == iso && cities.isNotEmpty;
+    // Yükleme sürerken (loading) gelen aynı gün isteği 'yenileme' sayılmaz: çubuk baştan ve gerçekten bitene kadar sürer
+    final keep = newIso == iso && cities.isNotEmpty && !loading;
 
     // Daha önce (arka planda bile olsa) tamamen yüklenmiş geçmiş gün: bekletmeden aç
     final hit = (!keep && newIso.compareTo(today) < 0) ? _dayCache[newIso] : null;
@@ -1128,6 +1132,12 @@ class TjkStore extends ChangeNotifier {
     // Ekrandaki durumu yalnızca hâlâ güncel yükleme kapatır; eski yükleme sessizce biter.
     if (!live()) return;
     progress = 1;
+    if (loading) {
+      // Çubuk %100'e dolup 'Hazır' görünsün, sonra içeriğe geçilsin
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 450));
+      if (!live()) return;
+    }
     loading = false;
     notifyListeners();
     refreshResults();

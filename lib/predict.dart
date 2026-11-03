@@ -190,7 +190,8 @@ class _PredictPageState extends State<PredictPage> {
   }
 
   void _initCity() {
-    if (s.cities.isEmpty) return;
+    // Bülten (program) tamamen gelmeden hipodrom/koşu seçme: boş veriyle seçilirse sonradan düzelmez
+    if (s.cities.isEmpty || s.loading) return;
     if (_city.isEmpty || !s.cities.any((c) => c.name == _city)) {
       _city = s.cities.first.name;
       _race = _nextRace(_city);
@@ -631,7 +632,8 @@ class _PredictPageState extends State<PredictPage> {
 @override
 Widget build(BuildContext context) {
   final c = AppColors.of(context);
-  if (s.loading && s.cities.isEmpty) {
+  // Bülten tamamen yüklenene (çubuk %100) kadar kart görünsün; şehirler gelir gelmez içeriğe geçme.
+  if (s.loading || (s.cities.isNotEmpty && !s.hasRaces && s.error == null)) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
       children: [
