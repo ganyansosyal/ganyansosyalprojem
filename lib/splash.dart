@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -6,8 +5,8 @@ import 'theme.dart';
 import 'auth_page.dart';
 import 'preload.dart';
 
-/// Hafif açılış ekranı: sabit küreler, harfler yerinde hafif dalgalanır, çubuk akıcı dolar.
-/// Yükleme biter bitmez (en çok 4 sn) akışa geçer; geçişte solma yok.
+/// Açılış ekranı: parçalar sırayla (sadece solma ile) belirir, hepsi gelince alttaki dolum başlar.
+/// Çipler dolum ilerledikçe sırayla sarıya döner (%30 / %60 / %90). Yükleme biter bitmez akışa yumuşakça geçer.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -23,8 +22,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late final Ticker _tick;
   Duration _last = Duration.zero;
 
-  static const _introMs = 1100.0;
-  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..forward();
+  static const _introMs = 1800.0; // tüm parçaların belirme süresi
+  static const _loadAt = 1400.0; // dolum bloğunun belirdiği an (ms)
+  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
 
   @override
   void initState() {
@@ -36,19 +36,20 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void _onTick(Duration t) {
     final dt = ((t - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
     _last = t;
-    final real = Preload.progress.value;
-    // bitmediyse: gerçek ilerleme + küçük pay, en çok %95; bitince hızlıca %100.
-    // Üstel yumuşatma: hız hedefe yaklaştıkça yavaşlar, adım atlayınca zıplamaz, hiç geri gitmez.
-    final limit = _loaded ? 1.0 : (real + 0.12).clamp(0.0, 0.95);
-    var v = _shown.value;
-    if (v < limit) {
-      final k = _loaded ? 6.0 : 2.0;
-      v = (v + ((limit - v) * k + 0.03) * dt).clamp(0.0, limit);
-      _shown.value = v;
-    }
-    if (_loaded && v >= 1.0 && _intro.isCompleted && !_left) {
-      _tick.stop();
-      _leave();
+    // dolum, bloğu görünür olunca başlar
+    if (_intro.value * _introMs >= _loadAt) {
+      final real = Preload.progress.value;
+      final limit = _loaded ? 1.0 : (real + 0.12).clamp(0.0, 0.95);
+      var v = _shown.value;
+      if (v < limit) {
+        final k = _loaded ? 6.0 : 2.0;
+        v = (v + ((limit - v) * k + 0.03) * dt).clamp(0.0, limit);
+        _shown.value = v;
+      }
+      if (_loaded && v >= 1.0 && _intro.isCompleted && !_left) {
+        _tick.stop();
+        _leave();
+      }
     }
   }
 
@@ -72,39 +73,114 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Harfler yerinde belirir, hafifçe dalgalanıp durur (yukarıdan düşme yok).
-  Widget _letter(String ch, int i, Color col, double ms) {
-    final t = ((ms - i * 35) / 650).clamp(0.0, 1.0);
-    final dy = 5 * math.sin(t * 2 * math.pi) * (1 - t);
-    final a = (t / .3).clamp(0.0, 1.0);
-    return Transform.translate(
-      offset: Offset(0, dy),
-      child: Text(ch, style: jakarta(48, FontWeight.w800, col.withAlpha((a * 255).round()), ls: -1.8).copyWith(height: 1.05)),
+  static const _mint = Color(0xFF8DF5CD), _gold = Color(0xFFF5C451), _white = Color(0xFFF4FFF9), _ink = Color(0xFF0B3B2D), _soft = Color(0xFF5F7A6E);
+
+  Widget _reveal(double at, Widget child) => _Reveal(_intro, at, child);
+
+  Widget _orb(double size, Color col) => Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: col));
+
+  Widget _chip(String text, bool on) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: on ? _gold : Colors.transparent,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: on ? _gold : const Color(0x59FFFFFF)),
+        ),
+        child: Text(text, style: jakarta(13, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0xD9F4FFF9))),
+      );
+
+  Widget _row(String a, String b) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFD5E6DE), width: .6))),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(a, style: jakarta(14, FontWeight.w600, _ink)),
+          Text(b, style: jakarta(14, FontWeight.w800, _ink)),
+        ]),
+      );
+
+  Widget _cards() {
+    return SizedBox(
+      width: 300,
+      height: 270,
+      child: Stack(children: [
+        Positioned(
+          left: 112,
+          top: 36,
+          child: _reveal(
+            400,
+            Transform.rotate(
+              angle: 0.12,
+              child: Container(
+                width: 170,
+                height: 206,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B6A4E),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0x4D8DF5CD)),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 22,
+          top: 16,
+          child: _reveal(
+            600,
+            Transform.rotate(
+              angle: -0.07,
+              child: Container(
+                width: 210,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                decoration: BoxDecoration(color: _white, borderRadius: BorderRadius.circular(20)),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+                      decoration: BoxDecoration(color: const Color(0xFF0B6A4E), borderRadius: BorderRadius.circular(99)),
+                      child: Text('Kupon', style: jakarta(12, FontWeight.w700, _white)),
+                    ),
+                    Text('Bugün', style: jakarta(12, FontWeight.w600, _soft)),
+                  ]),
+                  const SizedBox(height: 4),
+                  _row('1. Koşu', '5'),
+                  _row('2. Koşu', '3'),
+                  _row('3. Koşu', '8'),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    const Icon(Icons.favorite_border, size: 18, color: _soft),
+                    const SizedBox(width: 5),
+                    Text('128', style: jakarta(13, FontWeight.w600, _soft)),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.chat_bubble_outline, size: 17, color: _soft),
+                    const SizedBox(width: 5),
+                    Text('24', style: jakarta(13, FontWeight.w600, _soft)),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 4,
+          top: 0,
+          child: _reveal(
+            800,
+            Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: _gold),
+              child: Text('+3', style: jakarta(16, FontWeight.w800, const Color(0xFF3A2900))),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 
-  Widget _orb(double size, Color col) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [col.withAlpha(120), col.withAlpha(0)])),
-      );
-
-  Widget _tag(String text, bool on) => AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        transform: Matrix4.translationValues(0, on ? -3 : 0, 0),
-        decoration: BoxDecoration(
-          color: on ? const Color(0xFFF5C451) : Colors.transparent,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: on ? const Color(0xFFF5C451) : const Color(0x59FFFFFF)),
-        ),
-        child: Text(text, style: jakarta(14, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0xD9F4FFF9))),
-      );
-
   @override
   Widget build(BuildContext context) {
-    const mint = Color(0xFF8DF5CD), gold = Color(0xFFF5C451), gold2 = Color(0xFFFFE29A);
-    const word = 'GanyanSosyal';
     return Scaffold(
       backgroundColor: const Color(0xFF073B2D),
       body: Container(
@@ -115,108 +191,83 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           // sabit ışık küreleri (hareket yok)
           RepaintBoundary(
             child: Stack(children: [
-              Positioned(left: -75, top: 57, child: _orb(300, const Color(0xFF1FBF8B))),
-              Positioned(right: -95, bottom: 103, child: _orb(260, const Color(0xFF0D7A56))),
+              Positioned(left: -90, top: 70, child: _orb(300, const Color(0x291FBF8B))),
+              Positioned(right: -100, bottom: 110, child: _orb(260, const Color(0x730D7A56))),
             ]),
           ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: _intro,
-                        builder: (_, __) {
-                          final ms = _intro.value * _introMs;
-                          return FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (var i = 0; i < word.length; i++) _letter(word[i], i, i < 6 ? const Color(0xFFF4FFF9) : mint, ms),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 46),
-                    ValueListenableBuilder<double>(
-                      valueListenable: _shown,
-                      builder: (_, v, __) {
-                        final p = v.clamp(0.02, 1.0);
-                        return Column(children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: LayoutBuilder(builder: (_, box) {
-                              final w = box.maxWidth;
-                              return SizedBox(
-                                height: 26,
-                                child: Stack(clipBehavior: Clip.none, alignment: Alignment.centerLeft, children: [
-                                  Container(
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0x17FFFFFF),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: const Color(0x1AFFFFFF)),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: 0,
-                                    child: Container(
-                                      width: w * p,
-                                      height: 14,
-                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: [gold2, gold])),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: w * p - 13,
-                                    child: Container(
-                                      width: 26,
-                                      height: 26,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: gold2,
-                                        boxShadow: [BoxShadow(color: Color(0x40F5C451), spreadRadius: 5)],
-                                      ),
-                                    ),
-                                  ),
-                                ]),
-                              );
-                            }),
-                          ),
-                          const SizedBox(height: 14),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text('Yükleniyor', style: jakarta(15, FontWeight.w500, const Color(0xE0F4FFF9))),
-                                _RollingPercent(v),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 34),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _tag('Tahmin et', v >= .45),
-                              const SizedBox(width: 10),
-                              _tag('Paylaş', v >= .82),
-                            ],
-                          ),
-                        ]);
-                      },
-                    ),
-                  ],
+          SafeArea(
+            child: Column(children: [
+              const SizedBox(height: 34),
+              _reveal(
+                0,
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('Ganyan', style: jakarta(28, FontWeight.w800, _white, ls: -.8)),
+                  Text('Sosyal', style: jakarta(28, FontWeight.w800, _mint, ls: -.8)),
+                ]),
+              ),
+              const Spacer(),
+              RepaintBoundary(child: _cards()),
+              const SizedBox(height: 26),
+              _reveal(
+                1000,
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: 'Tahminini paylaş,\n', style: jakarta(26, FontWeight.w800, _white, ls: -.6).copyWith(height: 1.2)),
+                    TextSpan(text: 'yarışa katıl', style: jakarta(26, FontWeight.w800, _mint, ls: -.6).copyWith(height: 1.2)),
+                  ]),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              _reveal(
+                1200,
+                ValueListenableBuilder<double>(
+                  valueListenable: _shown,
+                  builder: (_, v, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    _chip('Tahmin et', v >= .30),
+                    const SizedBox(width: 8),
+                    _chip('Paylaş', v >= .60),
+                    const SizedBox(width: 8),
+                    _chip('Yarış', v >= .90),
+                  ]),
+                ),
+              ),
+              const Spacer(),
+              _reveal(
+                1400,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _shown,
+                    builder: (_, v, __) {
+                      final p = v.clamp(0.02, 1.0);
+                      return Column(children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Text('Yükleniyor', style: jakarta(14, FontWeight.w500, const Color(0xE0F4FFF9))),
+                          _RollingPercent(v),
+                        ]),
+                        const SizedBox(height: 10),
+                        RepaintBoundary(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              height: 10,
+                              color: const Color(0x1FFFFFFF),
+                              child: Transform(
+                                alignment: Alignment.centerLeft,
+                                transform: Matrix4.diagonal3Values(p, 1, 1),
+                                child: Container(color: _gold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ]);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ]),
           ),
         ]),
       ),
@@ -224,6 +275,23 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   }
 }
 
+/// Parça, kendi zamanı gelince hafif bir solmayla belirir (kayma/zıplama yok, sadece saydamlık).
+class _Reveal extends StatelessWidget {
+  final Animation<double> a;
+  final double at;
+  final Widget child;
+  const _Reveal(this.a, this.at, this.child);
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: a,
+        child: child,
+        builder: (_, ch) {
+          final o = ((a.value * _SplashPageState._introMs - at) / 300).clamp(0.0, 1.0);
+          return Opacity(opacity: o, child: ch);
+        },
+      );
+}
 
 /// Yüzde sayacı: her hane sabit genişlikli bir sütun, rakamlar kayarak döner (kilometre sayacı gibi).
 /// Genişlik hiç değişmediği için sayı ve çubuk titremez.
@@ -231,7 +299,7 @@ class _RollingPercent extends StatelessWidget {
   final double v; // 0..1
   const _RollingPercent(this.v);
 
-  static const _w = 19.0, _h = 34.0;
+  static const _w = 14.0, _h = 26.0;
   static double _ease(double f) => f * f * (3 - 2 * f);
 
   Widget _col(double pos, List<String> cells, TextStyle st) {
@@ -257,7 +325,7 @@ class _RollingPercent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final st = jakarta(30, FontWeight.w800, const Color(0xFFF5C451), ls: -.6)
+    final st = jakarta(22, FontWeight.w800, const Color(0xFFF5C451), ls: -.4)
         .copyWith(fontFeatures: const [FontFeature.tabularFigures()], height: 1.0);
     final x = v.clamp(0.0, 1.0) * 100;
     final fl = x.floor();
