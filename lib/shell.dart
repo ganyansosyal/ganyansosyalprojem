@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'admin.dart';
 import 'auth_service.dart';
 import 'beraber.dart';
@@ -28,6 +29,28 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   final GlobalKey<ScaffoldState> _key = GlobalKey<ScaffoldState>();
   int _tab = 0;
+  // Sohbet butonu: kullanıcı sürükleyip istediği yere bırakır, konum hatırlanır.
+  // Değerler ekran oranı (0..1): sol kenar / üst kenar.
+  double _chatX = 1.0, _chatY = 1.0; // 1,1 = sağ alt (varsayılan)
+  bool _chatDrag = false;
+  Offset _chatPx = Offset.zero;
+
+  Future<void> _loadChatPos() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final x = sp.getDouble('chatFabX'), y = sp.getDouble('chatFabY');
+      if (x != null && y != null && mounted) setState(() { _chatX = x; _chatY = y; });
+    } catch (_) {}
+  }
+
+  Future<void> _saveChatPos() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setDouble('chatFabX', _chatX);
+      await sp.setDouble('chatFabY', _chatY);
+    } catch (_) {}
+  }
+
   final _navKeys = List.generate(5, (_) => GlobalKey());
   final _navStackKey = GlobalKey();
   final List<double?> _navCx = List.filled(5, null);
@@ -89,6 +112,7 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     UpdateCheck.run();
+    _loadChatPos();
     final u = profileNotifier.value?.uid ?? '';
     if (u.isNotEmpty) {
       Settler.start(u);
@@ -321,36 +345,75 @@ class _ShellState extends State<Shell> {
               ),
             ),
           ),
-          // Sağ altta yüzen sohbet butonu: Tahmin Yap sayfasında gizlenir
-          Positioned(
-            right: 14,
-            bottom: bottom + 75 + 14,
-            child: IgnorePointer(
-              ignoring: _tab == 2,
-              child: AnimatedScale(
-                scale: _tab == 2 ? 0 : 1,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutBack,
-                child: AnimatedOpacity(
-                  opacity: _tab == 2 ? 0 : 1,
-                  duration: const Duration(milliseconds: 200),
-                  child: GestureDetector(
-                    onTap: () => openChat(context),
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: c.sf,
-                        boxShadow: const [BoxShadow(color: Color(0x2E000000), blurRadius: 14, offset: Offset(0, 4))],
+          // Yüzen sohbet butonu: sürüklenir, bırakılınca en yakın kenara yapışır, konum hatırlanır.
+          // Tahmin Yap sayfasında gizlenir
+          Builder(builder: (context) {
+            const fab = 52.0, m = 14.0;
+            final sz = MediaQuery.sizeOf(context);
+            final minX = m, maxX = sz.width - fab - m;
+            final minY = MediaQuery.paddingOf(context).top + 76;
+            final maxY = sz.height - bottom - 78 - fab - m;
+            final left = minX + (maxX - minX) * _chatX.clamp(0.0, 1.0);
+            final top = minY + (maxY - minY) * _chatY.clamp(0.0, 1.0);
+            return AnimatedPositioned(
+              duration: _chatDrag ? Duration.zero : const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              left: left,
+              top: top,
+              child: IgnorePointer(
+                ignoring: _tab == 2,
+                child: AnimatedScale(
+                  scale: _tab == 2 ? 0 : (_chatDrag ? 1.12 : 1),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedOpacity(
+                    opacity: _tab == 2 ? 0 : 1,
+                    duration: const Duration(milliseconds: 200),
+                    child: GestureDetector(
+                      onTap: () => openChat(context),
+                      onPanStart: (_) => setState(() {
+                        _chatDrag = true;
+                        _chatPx = Offset(left, top);
+                      }),
+                      onPanUpdate: (d) {
+                        _chatPx += d.delta;
+                        final x = _chatPx.dx.clamp(minX, maxX), y = _chatPx.dy.clamp(minY, maxY);
+                        setState(() {
+                          _chatX = maxX > minX ? (x - minX) / (maxX - minX) : 1;
+                          _chatY = maxY > minY ? (y - minY) / (maxY - minY) : 1;
+                        });
+                      },
+                      onPanEnd: (_) {
+                        setState(() {
+                          _chatDrag = false;
+                          _chatX = _chatX < 0.5 ? 0.0 : 1.0; // en yakın kenara yapış
+                        });
+                        _saveChatPos();
+                      },
+                      onPanCancel: () => setState(() => _chatDrag = false),
+                      child: Container(
+                        width: fab,
+                        height: fab,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF34D399), Color(0xFF0E9F73)],
+                          ),
+                          border: Border.all(color: Colors.white.withAlpha(200), width: 2),
+                          boxShadow: [
+                            BoxShadow(color: const Color(0xFF0E9F73).withAlpha(100), blurRadius: _chatDrag ? 20 : 14, offset: const Offset(0, 5)),
+                          ],
+                        ),
+                        child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 25),
                       ),
-                      child: Icon(Icons.forum_rounded, color: c.ac, size: 26),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
           Positioned(
             left: 0,
             right: 0,
