@@ -1622,149 +1622,40 @@ Widget _horseDetail(AppColors c, Horse h, String key) {
       );
 }
 
-/// Takı çipleri + son koşuya göre değişiklik işaretleri
-class _TakiRow extends StatefulWidget {
+/// Takı çipleri (sadece bugünkü takılar; son koşu karşılaştırması kaldırıldı)
+class _TakiRow extends StatelessWidget {
   final AppColors c;
   final Horse h;
   const _TakiRow(this.c, this.h);
-  @override
-  State<_TakiRow> createState() => _TakiRowState();
-}
 
-const _takiAtomlar = ['SKG', 'GKR', 'KG', 'SK', 'DB', 'ÖG', 'K'];
-
-/// "DBSK" -> [DB, SK]; "KDB" -> [K, DB]. Parçalanamazsa kodun kendisi döner.
-List<String> _takiParcala(String k) {
-  List<String>? bol(String s) {
-    if (s.isEmpty) return <String>[];
-    for (final a in _takiAtomlar) {
-      if (s.startsWith(a)) {
-        final r = bol(s.substring(a.length));
-        if (r != null) return [a, ...r];
-      }
-    }
-    return null;
-  }
-
-  return bol(k) ?? [k];
-}
-
-Set<String> _takiAtomSet(Iterable<String> ks) => {for (final k in ks) ..._takiParcala(k)};
-
-class _TakiRowState extends State<_TakiRow> {
-  Set<String>? _prev; // null = son koşunun takısı bilinmiyor
-  int _tries = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    final id = widget.h.atId;
-    if (id.isEmpty) return;
-    if (atHistHazir(id)) {
-      getAtHist(id).then((r) {
-        final tk = r.yaris?.tk ?? '?';
-        if (!mounted) return;
-        // Boş/bilinmeyen: sunucudaki hazır veri eski olabilir -> TJK'dan canlı doğrula
-        if (tk == '?' || tk.isEmpty) {
-          _canli(id);
-          return;
-        }
-        setState(() => _prev = tk.split(',').toSet());
-      }, onError: (Object _) => _canli(id));
-    } else if (_tries++ < 3) {
-      Future.delayed(const Duration(seconds: 6), () {
-        if (mounted) _load();
-      });
-    } else {
-      _canli(id);
-    }
-  }
-
-  void _canli(String id) {
-    atSonTakiCanli(id).then((tk) {
-      if (!mounted || tk == '?') return;
-      setState(() => _prev = tk.isEmpty ? <String>{} : tk.split(',').toSet());
-    }, onError: (Object _) {});
-  }
-
-  Widget _chip(BuildContext ctx, String k, String a, String st) {
-    final c = widget.c;
-    final isNew = st == 'new', isOld = st == 'old', isNone = st == 'none';
-    final Color col = isOld ? c.red : (isNone ? c.mu : c.ac);
+  Widget _chip(BuildContext ctx, String k, String a) {
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: isNew ? c.ac : (isOld ? c.red.withAlpha(34) : (isNone ? Colors.transparent : c.ac.withAlpha(22))),
+        color: c.ac.withAlpha(22),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isNew ? c.ac : (isOld ? c.red : col.withAlpha(isNone ? 120 : 160)), width: isOld ? 1.6 : 1),
+        border: Border.all(color: c.ac.withAlpha(160), width: 1),
       ),
-      child: Text(
-        k,
-        style: jakarta(11.5, FontWeight.w800, isNew ? c.on : col).copyWith(decoration: isOld ? TextDecoration.lineThrough : null, decorationColor: c.red, decorationThickness: 2.6),
-      ),
+      child: Text(k, style: jakarta(11.5, FontWeight.w800, c.ac)),
     );
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       // kartın "kupona ekle" dokunuşuna düşmesin: takıya basınca açıklama açılır
-      onTap: () {
-        if (isNone) {
-          _takiInfo(ctx, c, 'Takısız', 'Bugün hiç takı yok.', durum: 'Son koşuda takı vardı', durumRenk: c.red);
-        } else if (isOld) {
-          _takiInfo(ctx, c, k, takiAnlamCache[k] ?? '', durum: 'Çıkarıldı · son koşuda vardı, bugün takılı değil', durumRenk: c.red);
-        } else {
-          _takiInfo(ctx, c, k, a.isNotEmpty ? a : (takiAnlamCache[k] ?? ''), durum: isNew ? 'Yeni takıldı · son koşuda yoktu' : null, durumRenk: c.gold);
-        }
-      },
+      onTap: () => _takiInfo(ctx, c, k, a.isNotEmpty ? a : (takiAnlamCache[k] ?? '')),
       child: Container(
         margin: const EdgeInsets.only(left: 4, bottom: 2, top: 4),
-        child: Stack(clipBehavior: Clip.none, children: [
-          Opacity(opacity: isOld ? 0.8 : 1, child: chip),
-          if (isNew)
-            Positioned(
-              top: -6,
-              right: -4,
-              child: Container(
-                width: 15,
-                height: 15,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: c.gold, shape: BoxShape.circle, border: Border.all(color: c.sf, width: 1.5)),
-                child: const Text('+', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, height: 1.05)),
-              ),
-            ),
-        ]),
+        child: chip,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final cur = widget.h.taki.take(4).toList();
-    final prev = _prev;
-    // "DB SK" ile "DBSK" aynı şey: karşılaştırma parçalanmış (atom) kodlarla yapılır
-    final curAtoms = _takiAtomSet(cur.map((e) => e.k));
-    final prevAtoms = prev == null ? <String>{} : _takiAtomSet(prev);
-    final kids = <Widget>[];
-    for (final t in cur) {
-      final yeni = prev != null && _takiParcala(t.k).any((a) => !prevAtoms.contains(a));
-      kids.add(_chip(context, t.k, t.a, yeni ? 'new' : 'same'));
-    }
-    if (prev != null) {
-      for (final k in prev) {
-        if (_takiParcala(k).any((a) => !curAtoms.contains(a))) kids.add(_chip(context, k, '', 'old'));
-      }
-      if (cur.isEmpty && prev.isNotEmpty) kids.add(_chip(context, 'Takısız', '', 'none'));
-    }
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      // teşhis: uzun basınca uygulamanın okuduğu takı verisi görünür
-      onLongPress: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Bugün: ${cur.map((e) => e.k).join(',')}  |  Son koşu: ${prev == null ? 'bilinmiyor' : (prev.isEmpty ? 'takısız' : prev.join(','))}'),
-      )),
-      child: Wrap(alignment: WrapAlignment.end, runSpacing: 2, children: kids),
+    final cur = h.taki.take(4).toList();
+    return Wrap(
+      alignment: WrapAlignment.end,
+      runSpacing: 2,
+      children: [for (final t in cur) _chip(context, t.k, t.a)],
     );
   }
 }
