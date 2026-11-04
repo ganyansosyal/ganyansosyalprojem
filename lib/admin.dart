@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'resume_quiet.dart';
 import 'auth_service.dart';
 import 'credits.dart';
 import 'feed.dart' show Post, fmtStamp;
@@ -230,7 +229,7 @@ class _AccessGateState extends State<AccessGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) ResumeQuiet.settled().then((_) => Presence.touch());
+    if (state == AppLifecycleState.resumed) Presence.touch();
   }
 
   @override

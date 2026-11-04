@@ -1,10 +1,13 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
-import 'resume_quiet.dart';
 import 'levelplay_ads.dart';
 import 'splash.dart';
 import 'auth_page.dart';
@@ -23,19 +26,29 @@ const _barStyle = SystemUiOverlayStyle(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ResumeQuiet.i.init(); // diğer yaşam döngüsü gözlemcilerinden önce kaydolmalı
+  await preloadFonts();
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000
     ..maximumSizeBytes = 200 << 20; // avatarlar bellekten düşmesin
   SystemChrome.setSystemUIOverlayStyle(_barStyle);
-  // Açılışta siyah ekran uzamasın: yazı tipleri ve Firebase art arda değil AYNI ANDA hazırlanır.
-  // (Yenileme hızı kilidi kaldırıldı: telefon kendi uygun hızını seçer.)
-  await Future.wait<void>([preloadFonts(), initFirebase()]);
-  // Reklam SDK'ları açılışta BAŞLATILMAZ (siyah ekranı uzatıyordu): splash bitince splash.dart başlatır.
+  // Telefon 90/120 Hz destekliyorsa uygulamayı da en yüksek yenileme hızında çalıştır (tarayıcı gibi akıcı olsun)
+  if (Platform.isAndroid) {
+    try {
+      await FlutterDisplayMode.setHighRefreshRate();
+    } catch (_) {}
+  }
+  await initFirebase();
+  // Reklam SDK'sı arka planda başlasın: açılışı (siyah ekranı) geciktirmesin
+  () async {
+    try {
+      await MobileAds.instance.initialize();
+    } catch (_) {}
+    try {
+      await LevelPlayAds.instance.init();
+    } catch (_) {}
+  }();
+  Preload.start(); // akış verisi splash sürerken arka planda gelsin
   runApp(const GanyanApp());
-  Future.delayed(const Duration(seconds: 20), startAds); // yedek: splash hiç bitmezse bile reklamlar hazır olsun
-  // Akış verisi, ilk kare çizildikten SONRA başlar (splash splash'ın ilk karesini geciktirmesin)
-  WidgetsBinding.instance.addPostFrameCallback((_) => Preload.start());
 }
 
 class GanyanApp extends StatelessWidget {

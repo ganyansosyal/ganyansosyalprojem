@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'resume_quiet.dart';
 import 'auth_service.dart';
 import 'bets.dart';
 import 'coupon_view.dart';
@@ -298,8 +297,7 @@ class _FeedPageState extends State<FeedPage> {
     }
     // 3 Firestore akışı art arda gelince feed'i 3 kez baştan hesaplamasın
     void bump() {
-      _bumpT ??= Timer(const Duration(milliseconds: 150), () async {
-        await ResumeQuiet.settled(); // arkadan öne dönüş animasyonu sürerken yeniden çizme
+      _bumpT ??= Timer(const Duration(milliseconds: 150), () {
         _bumpT = null;
         if (mounted) setState(() => _ver++);
       });
