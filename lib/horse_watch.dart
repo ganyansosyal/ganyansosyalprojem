@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'resume_quiet.dart';
 import 'auth_service.dart';
 import 'shell.dart' show IconBox;
 import 'theme.dart';
@@ -21,7 +22,7 @@ String _key(String s) => s
 class _Resume with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) HorseWatch.i.check();
+    if (state == AppLifecycleState.resumed) ResumeQuiet.settled(const Duration(seconds: 1)).then((_) => HorseWatch.i.check());
   }
 }
 

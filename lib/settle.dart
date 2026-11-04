@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show WidgetsBinding, WidgetsBindingObserver, AppLifecycleState;
 
+import 'resume_quiet.dart';
 import 'auth_service.dart';
 import 'feed.dart';
 import 'ikramiye.dart';
@@ -16,7 +17,7 @@ final ValueNotifier<bool> isModNotifier = ValueNotifier(false);
 class _Resume with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) Settler.poll(force: true);
+    if (state == AppLifecycleState.resumed) ResumeQuiet.settled(const Duration(seconds: 2)).then((_) => Settler.poll(force: true));
   }
 }
 

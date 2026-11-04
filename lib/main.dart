@@ -1,12 +1,10 @@
-import 'dart:io' show Platform;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
+import 'resume_quiet.dart';
 import 'levelplay_ads.dart';
 import 'splash.dart';
 import 'auth_page.dart';
@@ -25,22 +23,14 @@ const _barStyle = SystemUiOverlayStyle(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ResumeQuiet.i.init(); // diğer yaşam döngüsü gözlemcilerinden önce kaydolmalı
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000
     ..maximumSizeBytes = 200 << 20; // avatarlar bellekten düşmesin
   SystemChrome.setSystemUIOverlayStyle(_barStyle);
-  // Açılışta siyah ekran uzamasın: yazı tipleri, Firebase ve yenileme hızı art arda değil AYNI ANDA hazırlanır.
-  // (Telefon 90/120 Hz destekliyorsa uygulamayı en yüksek yenileme hızında çalıştır.)
-  await Future.wait<void>([
-    preloadFonts(),
-    initFirebase(),
-    if (Platform.isAndroid)
-      () async {
-        try {
-          await FlutterDisplayMode.setHighRefreshRate();
-        } catch (_) {}
-      }(),
-  ]);
+  // Açılışta siyah ekran uzamasın: yazı tipleri ve Firebase art arda değil AYNI ANDA hazırlanır.
+  // (Yenileme hızı kilidi kaldırıldı: telefon kendi uygun hızını seçer.)
+  await Future.wait<void>([preloadFonts(), initFirebase()]);
   // Reklam SDK'ları açılışta BAŞLATILMAZ (siyah ekranı uzatıyordu): splash bitince splash.dart başlatır.
   runApp(const GanyanApp());
   Future.delayed(const Duration(seconds: 20), startAds); // yedek: splash hiç bitmezse bile reklamlar hazır olsun
