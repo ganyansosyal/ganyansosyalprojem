@@ -83,6 +83,7 @@ String _admobErr = '';
 /// Önce LevelPlay (ironSource + Unity Ads + AdMob mediation), reklam yoksa doğrudan AdMob.
 Future<bool> _playVideo() async {
   _admobErr = '';
+  await startAds(); // reklam SDK'ları henüz başlamadıysa şimdi başlat
   final r = await LevelPlayAds.instance.playRewarded();
   if (r != null) return r;
   return _playAdMobDirect();

@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
@@ -26,29 +25,27 @@ const _barStyle = SystemUiOverlayStyle(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await preloadFonts();
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000
     ..maximumSizeBytes = 200 << 20; // avatarlar bellekten düşmesin
   SystemChrome.setSystemUIOverlayStyle(_barStyle);
-  // Telefon 90/120 Hz destekliyorsa uygulamayı da en yüksek yenileme hızında çalıştır (tarayıcı gibi akıcı olsun)
-  if (Platform.isAndroid) {
-    try {
-      await FlutterDisplayMode.setHighRefreshRate();
-    } catch (_) {}
-  }
-  await initFirebase();
-  // Reklam SDK'sı arka planda başlasın: açılışı (siyah ekranı) geciktirmesin
-  () async {
-    try {
-      await MobileAds.instance.initialize();
-    } catch (_) {}
-    try {
-      await LevelPlayAds.instance.init();
-    } catch (_) {}
-  }();
-  Preload.start(); // akış verisi splash sürerken arka planda gelsin
+  // Açılışta siyah ekran uzamasın: yazı tipleri, Firebase ve yenileme hızı art arda değil AYNI ANDA hazırlanır.
+  // (Telefon 90/120 Hz destekliyorsa uygulamayı en yüksek yenileme hızında çalıştır.)
+  await Future.wait<void>([
+    preloadFonts(),
+    initFirebase(),
+    if (Platform.isAndroid)
+      () async {
+        try {
+          await FlutterDisplayMode.setHighRefreshRate();
+        } catch (_) {}
+      }(),
+  ]);
+  // Reklam SDK'ları açılışta BAŞLATILMAZ (siyah ekranı uzatıyordu): splash bitince splash.dart başlatır.
   runApp(const GanyanApp());
+  Future.delayed(const Duration(seconds: 20), startAds); // yedek: splash hiç bitmezse bile reklamlar hazır olsun
+  // Akış verisi, ilk kare çizildikten SONRA başlar (splash splash'ın ilk karesini geciktirmesin)
+  WidgetsBinding.instance.addPostFrameCallback((_) => Preload.start());
 }
 
 class GanyanApp extends StatelessWidget {

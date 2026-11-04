@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 
 /// LevelPlay (ironSource) mediation: ironSource + Unity Ads + Google AdMob.
@@ -10,6 +11,20 @@ const String kLevelPlayAppKey = '2929a4b7d';
 /// Panel > Setup > Ad units > "Rewarded Kredi" satırındaki kimlik.
 /// DİKKAT: panelden bir kez daha kontrol et (ekran görüntüsünden okundu).
 const String kLevelPlayRewardedAdUnitId = 'avoubet78r5s78d4';
+
+Future<void>? _adsBoot;
+
+/// Reklam SDK'larını (AdMob + LevelPlay) bir kez başlatır. Açılışta (splash sırasında) ÇAĞRILMAZ:
+/// Android'de ağır başlatma ana iş parçacığını meşgul edip ilk kareyi geciktiriyordu (siyah ekran).
+/// Splash bittikten sonra ya da ilk reklam istenince çalışır.
+Future<void> startAds() => _adsBoot ??= () async {
+      try {
+        await MobileAds.instance.initialize();
+      } catch (_) {}
+      try {
+        await LevelPlayAds.instance.init();
+      } catch (_) {}
+    }();
 
 class LevelPlayAds implements LevelPlayInitListener, LevelPlayRewardedAdListener {
   LevelPlayAds._();

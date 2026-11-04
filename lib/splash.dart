@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'theme.dart';
 import 'auth_page.dart';
+import 'levelplay_ads.dart';
 import 'preload.dart';
 
 /// Açılış ekranı: 1) logo + kartlar birlikte başlar, kartlar görünür şekilde sırayla açılır (arka kart, kupon, +3),
@@ -31,7 +32,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _tick = createTicker(_onTick)..start();
-    Preload.start().timeout(const Duration(seconds: 4), onTimeout: () {}).whenComplete(() => _loaded = true);
+    // Veri gelene kadar splash'ta bekle (çubuk %95'te durur): akış dolu açılsın, boş ekran + dönen simge görünmesin.
+    // Çok yavaş internette 12 sn sonra yine de açılır.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Preload.start().timeout(const Duration(seconds: 12), onTimeout: () {}).whenComplete(() => _loaded = true);
+    });
   }
 
   void _onTick(Duration t) {
@@ -57,6 +62,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void _leave() {
     if (!mounted || _left) return;
     _left = true;
+    Future.delayed(const Duration(seconds: 7), startAds); // reklam SDK'ları splash bittikten 7 sn sonra (akış rahat açılsın)
     // Splash altta opak kalır, uygulama üstüne yavaşça belirir (araya siyah/açık renk girmez)
     Navigator.of(context).pushReplacement(PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 320),
