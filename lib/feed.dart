@@ -622,13 +622,7 @@ class _NextRaceBarState extends State<_NextRaceBar> {
   void initState() { super.initState(); s.addListener(_u); _t = Timer.periodic(const Duration(seconds: 1), (_) => _u()); }
   @override
   void dispose() { _t?.cancel(); s.removeListener(_u); super.dispose(); }
-  // Uygulama arka plandayken/geçiş animasyonundayken boşuna yeniden çizme
-  void _u() {
-    if (!mounted) return;
-    final st = WidgetsBinding.instance.lifecycleState;
-    if (st != null && st != AppLifecycleState.resumed) return;
-    setState(() {});
-  }
+  void _u() { if (mounted) setState(() {}); }
 
   ({String city, Race r, DateTime d})? _next() {
     if (!s.isToday) return null;
