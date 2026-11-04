@@ -6,9 +6,14 @@ import 'theme.dart';
 import 'auth_page.dart';
 import 'preload.dart';
 
-/// Açılış ekranı: logo harfleri tek tek düşer (blur + parıltı), kartlar sırayla açılır (kupon satırları ✓ alır),
-/// kartlar gelince yarış pisti şeklinde dolum çubuğu + slogan + çipler belirir. %100'de konfeti, sonra akışa geçilir.
-/// Arkada yavaş dönen ışık huzmeleri ve 26 süzülen parçacık vardır.
+/// Açılış ekranı (demo videosundaki zamanlamayla birebir):
+///   0–1100 ms   logo harfleri + kartlar + "+3" rozeti belirir
+///   1100–1450   alt grup (yüzde çubuğu, slogan, çipler) yukarı kayarak açılır
+///   1610 ms     dolum başlar (hızlı başlar, sona doğru yavaşlar)
+///   %30/%60/%90 "Tahmin et" / "Paylaş" / "Yarış" çipleri sırayla yanar
+///   3005 ms     %100 → bekleme yok, hemen akışa 340 ms'lik yumuşak geçiş
+/// Çubuk gerçek yüklemeye (Preload.progress) bağlıdır: video zamanlaması en hızlı durumdur,
+/// veri geç gelirse çubuk gerçek ilerlemeyi geçmeden bekler (en çok %95), veri gelince %100'e tamamlanır.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -16,101 +21,81 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _P {
-  double x, y, vx, vy, r, a, g, v;
-  final int cr, cg, cb;
-  final bool burst;
-  _P({required this.x, required this.y, this.vx = 0, this.vy = 0, required this.r, required this.a, this.g = 0, this.v = 0, required this.cr, required this.cg, required this.cb, this.burst = false});
-}
-
 class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   bool _left = false, _loaded = false, _finishing = false;
 
-  // Gösterilen değer: gerçek ilerlemeye yumuşakça yaklaşır, adım adım zıplamaz.
+  // Gösterilen dolum değeri (0..1)
   final ValueNotifier<double> _shown = ValueNotifier(0.0);
   late final Ticker _tick;
   Duration _last = Duration.zero;
 
-  static const _introMs = 1800.0; // kartlar 0-1600, alt grup 1250-1800
-  static const _loadAt = 1700.0; // dolum: her şey göründükten sonra başlar
-  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
-  late final AnimationController _flash = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-  late final AnimationController _rays = AnimationController(vsync: this, duration: const Duration(seconds: 40))..repeat();
-  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
+  // ---- zamanlama (ms) ----
+  static const _introMs = 1450.0; // alt grup 1100–1450 arasında biter
+  static const _loadAt = 1610.0; // dolum başlangıcı
+  static const _fadeMs = 340; // akışa geçiş süresi
+  static const _holdAt = 0.95; // veri gelmediyse çubuğun çıkabileceği en üst seviye
 
-  final _rnd = math.Random();
-  final List<_P> _parts = [];
-  final ValueNotifier<int> _frame = ValueNotifier(0);
+  // Videodan ölçülen dolum eğrisi: [dolum başlangıcından ms, oran]
+  static const _curve = <List<double>>[
+    [0, .02],
+    [25, .068],
+    [92, .173],
+    [192, .315],
+    [293, .435],
+    [393, .532],
+    [493, .611],
+    [593, .678],
+    [727, .745],
+    [827, .831],
+    [927, .913],
+    [1028, .956],
+    [1120, .977],
+    [1220, .991],
+    [1395, 1.0], // 1610 + 1395 = 3005 ms
+  ];
+
+  late final AnimationController _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1450))..forward();
 
   @override
   void initState() {
     super.initState();
-    for (var i = 0; i < 26; i++) {
-      final mint = i.isEven;
-      _parts.add(_P(
-        x: _rnd.nextDouble(),
-        y: _rnd.nextDouble(),
-        r: 1 + _rnd.nextDouble() * 2.2,
-        v: .02 + _rnd.nextDouble() * .05,
-        a: .15 + _rnd.nextDouble() * .35,
-        cr: mint ? 141 : 245,
-        cg: mint ? 245 : 196,
-        cb: mint ? 205 : 81,
-      ));
-    }
     _tick = createTicker(_onTick)..start();
     Preload.start().timeout(const Duration(seconds: 4), onTimeout: () {}).whenComplete(() => _loaded = true);
   }
 
-  void _step(double dt) {
-    for (var i = _parts.length - 1; i >= 0; i--) {
-      final p = _parts[i];
-      if (p.burst) {
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.vy += p.g * dt;
-        p.a -= dt * .55;
-        if (p.a <= 0) _parts.removeAt(i);
-      } else {
-        p.y -= p.v * dt;
-        if (p.y < -.02) {
-          p.y = 1.02;
-          p.x = _rnd.nextDouble();
-        }
+  double _demo(double ms) {
+    final x = ms - _loadAt;
+    if (x <= 0) return 0.0;
+    for (var i = 1; i < _curve.length; i++) {
+      final a = _curve[i - 1], b = _curve[i];
+      if (x <= b[0]) {
+        final k = (x - a[0]) / (b[0] - a[0]);
+        return a[1] + (b[1] - a[1]) * k;
       }
     }
-  }
-
-  void _confetti() {
-    const cols = [(245, 196, 81), (141, 245, 205), (255, 255, 255), (255, 224, 138)];
-    for (var i = 0; i < 90; i++) {
-      final an = _rnd.nextDouble() * 6.283, sp = .4 + _rnd.nextDouble() * 1.1;
-      final c = cols[i % 4];
-      _parts.add(_P(x: .5, y: .62, vx: math.cos(an) * sp, vy: math.sin(an) * sp - .5, r: 2 + _rnd.nextDouble() * 3, a: 1, g: 1.1, cr: c.$1, cg: c.$2, cb: c.$3, burst: true));
-    }
+    return 1.0;
   }
 
   void _onTick(Duration t) {
+    if (_finishing) return;
     final dt = ((t - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
     _last = t;
-    _step(dt);
-    _frame.value++;
-    // dolum, her şey görünür olunca başlar
-    if (_intro.value * _introMs >= _loadAt && !_finishing) {
-      final real = Preload.progress.value;
-      final limit = _loaded ? 1.0 : (real + 0.12).clamp(0.0, 0.95);
-      var v = _shown.value;
-      if (v < limit) {
-        final k = _loaded ? 6.0 : 2.0;
-        v = (v + ((limit - v) * k + 0.03) * dt).clamp(0.0, limit);
-        _shown.value = v;
-      }
-      if (_loaded && v >= 1.0 && _intro.isCompleted) {
-        _finishing = true;
-        _confetti();
-        _flash.forward();
-        Future.delayed(const Duration(milliseconds: 900), _leave);
-      }
+    final ms = t.inMicroseconds / 1000.0;
+    // Çubuk iki şeye bağlı: (1) videodaki en hızlı pace, (2) GERÇEK yükleme ilerlemesi (Preload.progress).
+    // Veri hızlı gelirse tam video zamanlaması; geç gelirse çubuk gerçek ilerlemeyi geçmez, bekler.
+    final demoV = _demo(ms);
+    final limit = _loaded ? 1.0 : (Preload.progress.value + 0.12).clamp(0.0, _holdAt);
+    final target = demoV < limit ? demoV : limit;
+    var v = _shown.value;
+    if (target > v) {
+      // video hızında ilerlerken birebir izle; gerçek ilerlemeye takılıp sonra açılınca zıplamasın diye yumuşak yaklaş
+      v = (target - v) < 0.05 ? target : v + (target - v) * (1 - math.exp(-12 * dt));
+      _shown.value = v.clamp(0.0, 1.0).toDouble();
+    }
+    if (_loaded && _shown.value >= 0.999) {
+      _shown.value = 1.0;
+      _finishing = true;
+      _leave(); // %100'de bekleme yok: hemen akışa geç
     }
   }
 
@@ -120,7 +105,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _tick.stop();
     // Splash altta opak kalır, uygulama üstüne yavaşça belirir (araya siyah/açık renk girmez)
     Navigator.of(context).pushReplacement(PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 320),
+      transitionDuration: const Duration(milliseconds: _fadeMs),
       reverseTransitionDuration: Duration.zero,
       pageBuilder: (_, __, ___) => const AuthGate(),
       transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: CurvedAnimation(parent: a, curve: Curves.easeOut), child: child),
@@ -131,11 +116,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void dispose() {
     _tick.dispose();
     _intro.dispose();
-    _flash.dispose();
-    _rays.dispose();
-    _pulse.dispose();
     _shown.dispose();
-    _frame.dispose();
     super.dispose();
   }
 
@@ -143,83 +124,42 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   Widget _orb(double size, Color col) => Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: col));
 
-  Widget _chip(String text, bool on) => AnimatedScale(
-        scale: on ? 1.06 : 1.0,
+  Widget _chip(String text, bool on) => AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: on ? _gold : Colors.transparent,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: on ? _gold : const Color(0x59FFFFFF)),
-            boxShadow: on ? const [BoxShadow(color: Color(0x80F5C451), blurRadius: 14)] : const [],
-          ),
-          child: Text(text, style: jakarta(13, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0xD9F4FFF9))),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: on ? _gold : Colors.transparent,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: on ? _gold : const Color(0x59FFFFFF)),
         ),
+        child: Text(text, style: jakarta(13, FontWeight.w700, on ? const Color(0xFF3A2900) : const Color(0xD9F4FFF9))),
       );
 
-  Widget _row(String a, String b, int i) => Container(
+  Widget _row(String a, String b) => Container(
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFD5E6DE), width: .6))),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(a, style: jakarta(14, FontWeight.w600, _ink)),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(b, style: jakarta(14, FontWeight.w800, _ink)),
-            const SizedBox(width: 8),
-            _Anim(
-              _intro,
-              at: 700.0 + 220 * i,
-              dur: 350,
-              s0: 0,
-              curve: const Cubic(.2, 1.6, .4, 1),
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF1FBF8B)),
-                child: const Icon(Icons.check, size: 12, color: Colors.white),
-              ),
-            ),
-          ]),
+          Text(b, style: jakarta(14, FontWeight.w800, _ink)),
         ]),
       );
 
   Widget _logo() => AnimatedBuilder(
-        animation: Listenable.merge([_intro, _flash]),
+        animation: _intro,
         builder: (_, __) {
           const txt = 'GanyanSosyal';
           final ms = _intro.value * _introMs;
-          final pulse = 1 + 0.12 * math.sin(math.pi * _flash.value);
-          final sw = ((ms - 900) / 1100).clamp(0.0, 1.0);
-          return Transform.scale(
-            scale: pulse,
-            child: Stack(alignment: Alignment.center, children: [
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                for (var i = 0; i < txt.length; i++)
-                  () {
-                    final t = ((ms - i * 45) / 600).clamp(0.0, 1.0);
-                    final e = const Cubic(.2, 1.2, .4, 1).transform(t);
-                    Widget w = Transform.scale(scale: 1 + 0.5 * (1 - e), child: Text(txt[i], style: jakarta(36, FontWeight.w800, i < 6 ? _white : _mint, ls: -1)));
-                    final blur = 6 * (1 - e);
-                    if (blur > 0.1) w = ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: w);
-                    return Opacity(opacity: e.clamp(0.0, 1.0), child: Transform.translate(offset: Offset(0, -34 * (1 - e)), child: w));
-                  }(),
-              ]),
-              // parıltı: harflerin üstünden soldan sağa geçen ışık
-              if (sw > 0 && sw < 1)
-                IgnorePointer(
-                  child: ShaderMask(
-                    blendMode: BlendMode.srcIn,
-                    shaderCallback: (r) => LinearGradient(
-                      colors: const [Color(0x00FFFFFF), Color(0xBFFFFFFF), Color(0x00FFFFFF)],
-                      stops: const [.25, .5, .75],
-                      transform: _Slide(-.8 + 1.6 * Curves.easeInOut.transform(sw)),
-                    ).createShader(r),
-                    child: Text(txt, style: jakarta(36, FontWeight.w800, Colors.white, ls: -1)),
-                  ),
-                ),
-            ]),
-          );
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            for (var i = 0; i < txt.length; i++)
+              () {
+                final t = ((ms - i * 30) / 450).clamp(0.0, 1.0);
+                final e = const Cubic(.2, 1.2, .4, 1).transform(t);
+                Widget w = Transform.scale(scale: 1 + 0.5 * (1 - e), child: Text(txt[i], style: jakarta(36, FontWeight.w800, i < 6 ? _white : _mint, ls: -1)));
+                final blur = 6 * (1 - e);
+                if (blur > 0.1) w = ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: w);
+                return Opacity(opacity: e.clamp(0.0, 1.0), child: Transform.translate(offset: Offset(0, -34 * (1 - e)), child: w));
+              }(),
+          ]);
         },
       );
 
@@ -229,35 +169,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       height: 270,
       child: Stack(clipBehavior: Clip.none, children: [
         Positioned(
-          left: 0,
-          top: -15,
-          child: IgnorePointer(
-            child: _Anim(
-              _intro,
-              at: 700,
-              dur: 400,
-              child: AnimatedBuilder(
-                animation: _pulse,
-                builder: (_, ch) {
-                  final k = Curves.easeInOut.transform(_pulse.value);
-                  return Opacity(opacity: .25 + .35 * k, child: Transform.scale(scale: .9 + .2 * k, child: ch));
-                },
-                child: Container(
-                  width: 300,
-                  height: 300,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Color(0x59F5C451), Color(0x00F5C451)], stops: [0, .65])),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
           left: 112,
           top: 36,
           child: _Anim(
             _intro,
             at: 0,
-            dur: 700,
+            dur: 500,
             dx: 60,
             dy: 30,
             s0: .8,
@@ -282,8 +199,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             angle: -0.07,
             child: _Anim(
               _intro,
-              at: 200,
-              dur: 800,
+              at: 100,
+              dur: 600,
               dy: 40,
               flip: true,
               child: Container(
@@ -300,9 +217,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     Text('Bugün', style: jakarta(12, FontWeight.w600, _soft)),
                   ]),
                   const SizedBox(height: 4),
-                  _row('1. Koşu', '5', 0),
-                  _row('2. Koşu', '3', 1),
-                  _row('3. Koşu', '8', 2),
+                  _row('1. Koşu', '5'),
+                  _row('2. Koşu', '3'),
+                  _row('3. Koşu', '8'),
                   const SizedBox(height: 10),
                   Row(children: [
                     const Icon(Icons.favorite_border, size: 18, color: _soft),
@@ -323,11 +240,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           top: 0,
           child: _Anim(
             _intro,
-            at: 1000,
-            dur: 600,
-            s0: 0,
-            rot0: -0.7,
-            curve: const Cubic(.2, 1.8, .4, 1),
+            at: 650,
+            dur: 450,
+            s0: .5,
+            rot0: -0.5,
+            curve: Curves.easeOut,
             child: Container(
               width: 44,
               height: 44,
@@ -353,35 +270,21 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             return Column(children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text('Yükleniyor', style: jakarta(14, FontWeight.w500, const Color(0xE0F4FFF9))),
-                _RollingPercent(v),
+                _PopPercent(v),
               ]),
               const SizedBox(height: 12),
               LayoutBuilder(builder: (_, c) {
-                final w = c.maxWidth;
                 return SizedBox(
                   height: 12,
-                  child: Stack(clipBehavior: Clip.none, children: [
+                  child: Stack(children: [
                     Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(12)))),
                     Positioned(
                       left: 0,
                       top: 0,
                       bottom: 0,
-                      width: w * p,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [_gold, Color(0xFFFFE08A)]),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(color: Color(0xB3F5C451), blurRadius: 14)],
-                        ),
-                      ),
+                      width: c.maxWidth * p,
+                      child: DecoratedBox(decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(12))),
                     ),
-                    if (v > 0)
-                      Positioned(
-                        left: w * p - 11,
-                        top: -13,
-                        child: Transform(alignment: Alignment.center, transform: Matrix4.diagonal3Values(-1, 1, 1), child: const Text('🏇', style: TextStyle(fontSize: 22, height: 1))),
-                      ),
-                    const Positioned(right: -4, top: -11, child: Text('🏁', style: TextStyle(fontSize: 16, height: 1))),
                   ]),
                 );
               }),
@@ -399,31 +302,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           gradient: RadialGradient(center: Alignment(0, -.25), radius: 1.1, colors: [Color(0xFF0E7A58), Color(0xFF073B2D), Color(0xFF042A20)], stops: [0, .6, 1]),
         ),
         child: Stack(children: [
-          // yavaş dönen ışık huzmeleri (ortası parlak, kenarlara doğru solar)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: LayoutBuilder(builder: (_, c) {
-                return Stack(children: [
-                  Positioned(
-                    left: c.maxWidth / 2 - 450,
-                    top: c.maxHeight * .38 - 450,
-                    width: 900,
-                    height: 900,
-                    child: RepaintBoundary(
-                      child: ShaderMask(
-                        blendMode: BlendMode.dstIn,
-                        shaderCallback: (r) => const RadialGradient(colors: [Color(0xFF000000), Color(0x00000000)], stops: [0, .62], radius: .7071).createShader(r),
-                        child: AnimatedBuilder(
-                          animation: _rays,
-                          builder: (_, __) => Transform.rotate(angle: _rays.value * 2 * math.pi, child: const CustomPaint(size: Size(900, 900), painter: _RayPainter())),
-                        ),
-                      ),
-                    ),
-                  ),
-                ]);
-              }),
-            ),
-          ),
           // sabit ışık küreleri (hareket yok)
           RepaintBoundary(
             child: Stack(children: [
@@ -448,9 +326,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     const SizedBox(height: 16),
                     _Anim(
                       _intro,
-                      at: 1250,
-                      dur: 550,
+                      at: 1100,
+                      dur: 350,
                       dy: 22,
+                      curve: Curves.easeOut,
                       child: Column(children: [
                         _bar(),
                         const SizedBox(height: 24),
@@ -488,68 +367,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               );
             }),
           ),
-          // ambiyans parçacıkları + bitiş konfetisi (en üstte, dokunmayı engellemez)
-          Positioned.fill(child: IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: _PartPainter(_parts, _frame))))),
-          // bitişte kısa parlama
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _flash,
-                builder: (_, __) {
-                  final t = _flash.value;
-                  final o = t < .25 ? t / .25 : (1 - t) / .75;
-                  if (o <= 0) return const SizedBox.shrink();
-                  return Opacity(
-                    opacity: o.clamp(0.0, 1.0),
-                    child: const DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(center: Alignment(0, -.1), radius: .85, colors: [Color(0xE6FFF0BE), Color(0x00FFF0BE)], stops: [0, .7]))),
-                  );
-                },
-              ),
-            ),
-          ),
         ]),
       ),
     );
   }
-}
-
-class _PartPainter extends CustomPainter {
-  final List<_P> parts;
-  final Paint _paint = Paint();
-  _PartPainter(this.parts, Listenable repaint) : super(repaint: repaint);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (final p in parts) {
-      _paint.color = Color.fromRGBO(p.cr, p.cg, p.cb, p.a.clamp(0.0, 1.0));
-      canvas.drawCircle(Offset(p.x * size.width, p.y * size.height), p.r, _paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PartPainter old) => true;
-}
-
-class _RayPainter extends CustomPainter {
-  const _RayPainter();
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = const Color(0x128DF5CD);
-    final r = Rect.fromCircle(center: size.center(Offset.zero), radius: size.width / 2);
-    for (var k = 0; k < 15; k++) {
-      canvas.drawArc(r, k * 24 * math.pi / 180, 8 * math.pi / 180, true, p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-class _Slide extends GradientTransform {
-  final double dx;
-  const _Slide(this.dx);
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) => Matrix4.translationValues(bounds.width * dx, 0, 0);
 }
 
 /// Parça, kendi zamanında açılır: solma + (isteğe bağlı) kayma / büyüme / dönme / 3B devrilme.
@@ -583,52 +404,72 @@ class _Anim extends StatelessWidget {
       );
 }
 
-/// Yüzde sayacı: her hane sabit genişlikli bir sütun, rakamlar kayarak döner (kilometre sayacı gibi).
-/// Genişlik hiç değişmediği için sayı ve çubuk titremez.
-class _RollingPercent extends StatelessWidget {
+/// Yüzde sayacı ("Zıpla"): üç haneli sabit genişlikli yuva. Bir hane değişince yeni rakam büyük (1.55x) ve
+/// 8 px yukarıdan gelip yerine oturur (150 ms, easeOut). Animasyon bitmeden aynı hane yeniden başlatılmaz,
+/// böylece sayı hızlı akarken titremez; genişlik hiç değişmediği için çubuk da oynamaz.
+class _PopPercent extends StatefulWidget {
   final double v; // 0..1
-  const _RollingPercent(this.v);
+  const _PopPercent(this.v);
 
+  @override
+  State<_PopPercent> createState() => _PopPercentState();
+}
+
+class _PopPercentState extends State<_PopPercent> with TickerProviderStateMixin {
   static const _w = 14.0, _h = 26.0;
-  static double _ease(double f) => f * f * (3 - 2 * f);
+  late final List<AnimationController> _c =
+      List.generate(3, (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 150), value: 1.0));
+  late List<String> _d = _digits(widget.v);
 
-  Widget _col(double pos, List<String> cells, TextStyle st) {
-    return ClipRect(
-      child: SizedBox(
-        width: _w,
-        height: _h,
-        child: OverflowBox(
-          alignment: Alignment.topCenter,
-          minHeight: 0,
-          maxHeight: double.infinity,
-          child: Transform.translate(
-            offset: Offset(0, -pos * _h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [for (final c in cells) SizedBox(height: _h, child: Center(child: Text(c, style: st)))],
-            ),
-          ),
-        ),
-      ),
-    );
+  static List<String> _digits(double v) {
+    final t = (v.clamp(0.0, 1.0) * 100).floor().toString();
+    final d = ['', '', ''];
+    for (var i = 0; i < t.length; i++) {
+      d[2 - i] = t[t.length - 1 - i];
+    }
+    return d;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PopPercent old) {
+    super.didUpdateWidget(old);
+    final nd = _digits(widget.v);
+    final n = (widget.v * 100).floor();
+    for (var i = 0; i < 3; i++) {
+      if (nd[i] != _d[i] && nd[i].isNotEmpty && n > 0 && !_c[i].isAnimating) _c[i].forward(from: 0);
+    }
+    _d = nd;
+  }
+
+  @override
+  void dispose() {
+    for (final c in _c) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final st = jakarta(22, FontWeight.w800, const Color(0xFFF5C451), ls: -.4)
         .copyWith(fontFeatures: const [FontFeature.tabularFigures()], height: 1.0);
-    final x = v.clamp(0.0, 1.0) * 100;
-    final fl = x.floor();
-    final e = _ease(x - fl);
-    final ones = (fl % 10) + e;
-    final tens = (fl ~/ 10) + (fl % 10 == 9 ? e : 0.0);
-    final hund = (fl ~/ 100) + (fl % 100 == 99 ? e : 0.0);
-    const d = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
     return RepaintBoundary(
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        _col(hund, const ['', '1'], st),
-        _col(tens, const ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'], st),
-        _col(ones, d, st),
+        for (var i = 0; i < 3; i++)
+          SizedBox(
+            width: _w,
+            height: _h,
+            child: AnimatedBuilder(
+              animation: _c[i],
+              builder: (_, __) {
+                final e = Curves.easeOut.transform(_c[i].value);
+                return Transform.translate(
+                  offset: Offset(0, -8 * (1 - e)),
+                  child: Transform.scale(scale: 1.55 - .55 * e, child: Center(child: Text(_d[i], style: st))),
+                );
+              },
+            ),
+          ),
         Text('%', style: st),
       ]),
     );
