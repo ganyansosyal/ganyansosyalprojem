@@ -64,16 +64,29 @@ jobs:
           '''
           s=s.replace('android {',block,1)
           s=s.replace('signingConfigs.getByName("debug")','signingConfigs.getByName("release")')
-          s=s.replace('signingConfig = signingConfigs.getByName("release")','signingConfig = signingConfigs.getByName("release")\n            isMinifyEnabled = false\n            isShrinkResources = false',1)
+          s=s.replace('signingConfig = signingConfigs.getByName("release")','signingConfig = signingConfigs.getByName("release")\n            isMinifyEnabled = true\n            isShrinkResources = true\n            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")',1)
           open(p,'w').write(s)
           PY
+          # R8 kod karartma kuralları: reklam/Firebase SDK'ları bozulmasın
+          cat > android/app/proguard-rules.pro <<'EOF'
+          -keep class com.ironsource.adapters.** { *; }
+          -keep class com.unity3d.ads.** { *; }
+          -keep class com.unity3d.services.** { *; }
+          -keepclassmembers class com.ironsource.sdk.controller.IronSourceWebView$JSInterface { public *; }
+          -keepclassmembers class * implements android.os.Parcelable { public static final android.os.Parcelable$Creator *; }
+          -dontwarn com.ironsource.**
+          -dontwarn com.unity3d.**
+          -dontwarn com.google.android.play.core.**
+          -dontwarn com.google.protobuf.**
+          -dontwarn org.slf4j.**
+          EOF
 
       - run: flutter pub get
 
       - name: Uygulama simgesini üret
         run: dart run flutter_launcher_icons
 
-      - run: flutter build appbundle --release --no-shrink
+      - run: flutter build appbundle --release
         env:
           KS_PASS: ${{ secrets.KS_PASS }}
           KS_ALIAS: ${{ secrets.KS_ALIAS }}
