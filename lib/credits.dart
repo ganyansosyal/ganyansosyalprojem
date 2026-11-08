@@ -75,7 +75,7 @@ class Credits {
 
 /// AdMob ödüllü reklam birimi.
 /// TEST kimliği: gerçek hesaptan alınan reklam birimi kimliğiyle değiştirilecek.
-const String kRewardedUnitId = 'ca-app-pub-1340335815297540/1095854500';
+const String kRewardedUnitId = 'ca-app-pub-1340335815297540/3429530888';
 
 bool _adBusy = false;
 String _admobErr = '';
