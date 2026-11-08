@@ -4,11 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'preload.dart';
-import 'levelplay_ads.dart';
 import 'splash.dart';
 import 'auth_page.dart';
 
@@ -26,29 +24,59 @@ const _barStyle = SystemUiOverlayStyle(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await preloadFonts();
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000
     ..maximumSizeBytes = 200 << 20; // avatarlar bellekten düşmesin
   SystemChrome.setSystemUIOverlayStyle(_barStyle);
-  // Telefon 90/120 Hz destekliyorsa uygulamayı da en yüksek yenileme hızında çalıştır (tarayıcı gibi akıcı olsun)
-  if (Platform.isAndroid) {
-    try {
-      await FlutterDisplayMode.setHighRefreshRate();
-    } catch (_) {}
-  }
-  await initFirebase();
-  // Reklam SDK'sı arka planda başlasın: açılışı (siyah ekranı) geciktirmesin
-  () async {
-    try {
-      await MobileAds.instance.initialize();
-    } catch (_) {}
-    try {
-      await LevelPlayAds.instance.init();
-    } catch (_) {}
-  }();
-  Preload.start(); // akış verisi splash sürerken arka planda gelsin
+  // Ekran HEMEN çizilsin (siyah ekran olmasın). Font/Firebase beklemesi BootGate içinde, yeşil açılış ekranı arkasında yapılır.
   runApp(const GanyanApp());
+}
+
+/// Açılışta ağır işleri (font, Firebase, yenileme hızı) paralel yapar; bitene kadar yeşil marka ekranı gösterir.
+Future<void> _boot() async {
+  await Future.wait<void>([
+    preloadFonts(),
+    initFirebase(),
+    () async {
+      if (Platform.isAndroid) {
+        try {
+          await FlutterDisplayMode.setHighRefreshRate();
+        } catch (_) {}
+      }
+    }(),
+  ]);
+  // Reklam SDK'ları burada BAŞLATILMAZ: splash.dart (7 sn sonra) veya credits.dart (ilk reklam istenince) startAds() çağırır.
+  Preload.start(); // akış verisi splash sürerken arka planda gelsin
+}
+
+class BootGate extends StatefulWidget {
+  const BootGate({super.key});
+  @override
+  State<BootGate> createState() => _BootGateState();
+}
+
+class _BootGateState extends State<BootGate> {
+  late final Future<void> _f = _boot();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _f,
+      builder: (_, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const ColoredBox(
+            color: _barGreen,
+            child: Center(
+              child: Text('GanyanSosyal',
+                  style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -1, decoration: TextDecoration.none)),
+            ),
+          );
+        }
+        // giriş yapılmamışsa splash'ı atla, doğrudan giriş ekranı
+        return (firebaseReady && FirebaseAuth.instance.currentUser == null) ? const AuthGate() : const SplashPage();
+      },
+    );
+  }
 }
 
 class GanyanApp extends StatelessWidget {
@@ -87,7 +115,7 @@ class GanyanApp extends StatelessWidget {
         theme: buildTheme(AppColors.light, Brightness.light),
         darkTheme: buildTheme(AppColors.dark, Brightness.dark),
         // giriş yapılmamışsa splash'ı atla, doğrudan giriş ekranı
-        home: (firebaseReady && FirebaseAuth.instance.currentUser == null) ? const AuthGate() : const SplashPage(),
+        home: const BootGate(),
       ),
       ),
     );
