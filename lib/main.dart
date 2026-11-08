@@ -9,6 +9,7 @@ import 'theme.dart';
 import 'preload.dart';
 import 'splash.dart';
 import 'auth_page.dart';
+import 'app_open_ad.dart';
 
 const _barGreen = Color(0xFF0E7C5B);
 const _barStyle = SystemUiOverlayStyle(
@@ -57,6 +58,13 @@ class BootGate extends StatefulWidget {
 
 class _BootGateState extends State<BootGate> {
   late final Future<void> _f = _boot();
+
+  @override
+  void initState() {
+    super.initState();
+    // Uygulama açılınca (yeşil ekran bittikten sonra) açılış reklamı: her açılışta bir kez
+    _f.then((_) => AppOpenAds.showOnceSoon());
+  }
 
   @override
   Widget build(BuildContext context) {
