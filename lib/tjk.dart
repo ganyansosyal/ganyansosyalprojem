@@ -1208,7 +1208,7 @@ Future<String?> getVideoMp4(String url, String iso) async {
 }
 
 /// TJK'nın tam boyutlu (1080p, ~100 MB) videosu yerine mobil sürümünü (_m.mp4, ~20-25 MB) seçer.
-/// Mobil dosya sunucuda yoksa (HEAD 200/206 dönmezse) ya da hata olursa orijinal adres kullanılır.
+/// Mobil dosya sunucuda yoksa (HEAD 200/206 dönmezse) ya da hata/12 sn zaman aşımı olursa orijinal adres kullanılır.
 final Map<String, String> _mobMem = {};
 final RegExp _mp4Tail = RegExp(r'\.mp4(\?.*)?$', caseSensitive: false);
 
@@ -1221,7 +1221,7 @@ Future<String> mobileMp4(String u) async {
   final m = u.replaceFirstMapped(_mp4Tail, (x) => '_m.mp4${x.group(1) ?? ''}');
   var pick = u;
   try {
-    final r = await http.head(Uri.parse(m)).timeout(const Duration(seconds: 6));
+    final r = await http.head(Uri.parse(m)).timeout(const Duration(seconds: 12));
     if (r.statusCode == 200 || r.statusCode == 206) pick = m;
   } catch (_) {}
   _mobMem[u] = pick;
