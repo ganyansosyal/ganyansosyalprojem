@@ -19,7 +19,7 @@ const Duration kAppOpenFirstDelay = Duration.zero;
 const Duration kAppOpenMinAway = Duration(seconds: 60);
 
 /// İki açılış reklamı arasında en az geçmesi gereken süre.
-const Duration kAppOpenMinGap = Duration(minutes: 3);
+const Duration kAppOpenMinGap = Duration.zero;
 
 /// Giriş ekranında DEĞİL, uygulamanın içinde (ana ekran açılınca) çalışır.
 /// 1) Giriş yapıldıktan [kAppOpenFirstDelay] sonra bir kez.
