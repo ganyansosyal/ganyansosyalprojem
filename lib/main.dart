@@ -62,8 +62,8 @@ class _BootGateState extends State<BootGate> {
   @override
   void initState() {
     super.initState();
-    // Uygulama açılınca (yeşil ekran bittikten sonra) açılış reklamı: her açılışta bir kez
-    _f.then((_) => AppOpenAds.showOnceSoon());
+    // Açılış reklamı: giriş yapılmışsa ve ana ekran açılınca süre dolunca çıkar (süreler app_open_ad.dart içinde)
+    _f.then((_) => AppOpenAds.start());
   }
 
   @override
