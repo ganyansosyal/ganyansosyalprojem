@@ -77,6 +77,9 @@ class Credits {
 /// TEST kimliği: gerçek hesaptan alınan reklam birimi kimliğiyle değiştirilecek.
 const String kRewardedUnitId = 'ca-app-pub-1340335815297540/3429530888';
 
+/// AdMob ödüllü geçiş reklamı birimi (Kredi_RewardedInterstitial).
+const String kRewardedInterstitialUnitId = 'ca-app-pub-1340335815297540/1478757608';
+
 bool _adBusy = false;
 String _admobErr = '';
 
@@ -84,9 +87,48 @@ String _admobErr = '';
 Future<bool> _playVideo() async {
   _admobErr = '';
   await startAds(); // reklam SDK'ları henüz başlamadıysa şimdi başlat
+  // 1) AdMob ödüllü geçiş (kısa); 2) LevelPlay; 3) AdMob ödüllü
+  final ri = await _playRewardedInterstitial();
+  if (ri != null) return ri;
   final r = await LevelPlayAds.instance.playRewarded();
   if (r != null) return r;
   return _playAdMobDirect();
+}
+
+/// AdMob ödüllü geçiş reklamı. true=ödül, false=erken kapandı, null=yüklenemedi (yedeğe geç).
+Future<bool?> _playRewardedInterstitial() {
+  final done = Completer<bool?>();
+  var earned = false;
+  var loaded = false;
+  RewardedInterstitialAd.load(
+    adUnitId: kRewardedInterstitialUnitId,
+    request: const AdRequest(),
+    rewardedInterstitialAdLoadCallback: RewardedInterstitialAdLoadCallback(
+      onAdLoaded: (ad) {
+        loaded = true;
+        ad.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (a) {
+            a.dispose();
+            if (!done.isCompleted) done.complete(earned);
+          },
+          onAdFailedToShowFullScreenContent: (a, e) {
+            a.dispose();
+            if (!done.isCompleted) done.complete(null);
+          },
+        );
+        ad.show(onUserEarnedReward: (_, __) => earned = true);
+      },
+      onAdFailedToLoad: (e) {
+        _admobErr = 'AdMob RI ${e.code}: ${e.message}';
+        if (!done.isCompleted) done.complete(null);
+      },
+    ),
+  );
+  // Zaman aşımı sadece YÜKLEME için (kısa, kullanıcı beklemesin).
+  Future.delayed(const Duration(seconds: 6), () {
+    if (!loaded && !done.isCompleted) done.complete(null);
+  });
+  return done.future;
 }
 
 /// Doğrudan AdMob ödüllü reklamı (yedek). Kullanıcı sonuna kadar izlerse true döner.
