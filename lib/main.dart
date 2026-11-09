@@ -12,12 +12,12 @@ import 'auth_page.dart';
 
 const _barGreen = Color(0xFF0E7C5B);
 const _barStyle = SystemUiOverlayStyle(
-  statusBarColor: _barGreen,
+  statusBarColor: Colors.transparent,
   statusBarIconBrightness: Brightness.light,
   statusBarBrightness: Brightness.dark,
-  systemNavigationBarColor: _barGreen,
+  systemNavigationBarColor: Colors.transparent,
   systemNavigationBarIconBrightness: Brightness.light,
-  systemNavigationBarDividerColor: _barGreen,
+  systemNavigationBarDividerColor: Colors.transparent,
   systemStatusBarContrastEnforced: false,
   systemNavigationBarContrastEnforced: false,
 );
@@ -27,6 +27,7 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache
     ..maximumSize = 1000
     ..maximumSizeBytes = 200 << 20; // avatarlar bellekten düşmesin
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(_barStyle);
   // Ekran HEMEN çizilsin (siyah ekran olmasın). Font/Firebase beklemesi BootGate içinde, yeşil açılış ekranı arkasında yapılır.
   runApp(const GanyanApp());
