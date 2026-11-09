@@ -150,6 +150,7 @@ class _PredictPageState extends State<PredictPage> {
   bool _videoDone = false; // bu oturumda video izlendi: eksiği paylaşırken sistem tamamlar
   final Set<String> _detOpen = {}, _orOpen = {};
   bool _idmBusy = false;
+  final ScrollController _scroll = ScrollController(); // rehber, ilk atın yıldızına inebilsin
 
   bool get _admin => isAdminNotifier.value;
   bool _open(int r) => _admin || s.isPast || !s.raceDone(_city, r);
@@ -160,6 +161,7 @@ class _PredictPageState extends State<PredictPage> {
     s.addListener(_onStore);
     isAdminNotifier.addListener(_onStore);
     predictJump.addListener(_onJump);
+    Tour.scroll = _scroll;
     if (s.cities.isEmpty) {
       s.ensureLoaded();
     } else {
@@ -179,6 +181,8 @@ class _PredictPageState extends State<PredictPage> {
     s.removeListener(_onStore);
     isAdminNotifier.removeListener(_onStore);
     predictJump.removeListener(_onJump);
+    if (Tour.scroll == _scroll) Tour.scroll = null;
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -203,7 +207,14 @@ class _PredictPageState extends State<PredictPage> {
   }
 
   // Seçili hipodromun atlarının geçmiş bilgisini arka planda önceden çek (detay açılınca hazır olsun)
-  void _prefetch() => AtHistPrefetch.i.start(_city, _race);
+  String _pfKey = '';
+  void _prefetch() {
+    // Sonuçlar her güncellendiğinde yeniden başlatma: sadece hipodrom/koşu değişince çek (seçim sırasında takılmasın)
+    final k = '${s.iso}|$_city|$_race';
+    if (k == _pfKey) return;
+    _pfKey = k;
+    AtHistPrefetch.i.start(_city, _race);
+  }
 
   // Sekme canlı kaldığı için 'koşuya git' isteğini burada yakalıyoruz
   void _onJump() {
@@ -671,7 +682,7 @@ Widget build(BuildContext context) {
           }
           return false;
         },
-        child: ListView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 12), children: [
+        child: ValueListenableBuilder<TourStep?>(valueListenable: Tour.step, builder: (_, tourSt, __) => ListView(controller: _scroll, cacheExtent: tourSt == TourStep.star ? 6000 : null, padding: const EdgeInsets.fromLTRB(12, 8, 12, 12), children: [
         _dateBar(c),
         const SizedBox(height: 8),
         _typeBox(c),
@@ -742,7 +753,7 @@ Widget build(BuildContext context) {
         if (_t.hint.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(_t.hint, style: jakarta(11, FontWeight.w500, c.mu))),
         const SizedBox(height: 8),
         if (race != null) for (final h in race.atlar) RepaintBoundary(child: _horseCard(c, h)),
-      ]),
+      ])),
       ),
     ),
     _couponBar(c),

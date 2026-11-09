@@ -34,6 +34,9 @@ class Tour {
   /// Başka bir pencere (ör. takip atı sayfası) açıkken rehber geçici olarak gizlenir.
   static final ValueNotifier<bool> hidden = ValueNotifier<bool>(false);
 
+  /// Tahmin Yap sayfasının ana listesi (yıldız henüz çizilmediyse rehber listeyi aşağı kaydırır).
+  static ScrollController? scroll;
+
   static OverlayEntry? _entry;
   static String _uid = '';
   static bool get active => step.value != null;
@@ -191,6 +194,7 @@ class _TourOverlayState extends State<_TourOverlay> with TickerProviderStateMixi
   Duration _last = Duration.zero, _stepAt = Duration.zero, _lastScroll = Duration.zero;
   TourStep? _shown;
   bool _confStarted = false;
+  bool _midDone = false; // yıldız aranırken ilk kaydırma (sayfa ortası) yapıldı mı
   Offset? _down;
 
   @override
@@ -261,9 +265,29 @@ class _TourOverlayState extends State<_TourOverlay> with TickerProviderStateMixi
           _lastScroll = t;
           final ctx = Tour.kStar.currentContext;
           if (ctx != null) {
-            Scrollable.ensureVisible(ctx, alignment: 0.3, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+            Scrollable.ensureVisible(ctx, alignment: 0.5, duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
           }
         }
+      }
+    }
+    // Koşu bitince listenin üstüne sonuç kartı eklenir, ilk atın yıldızı ekran dışında kalıp çizilmez:
+    // hedef yoksa listeyi aşağı kaydır ki yıldız çizilsin.
+    if (r == null && s == TourStep.star && t - _lastScroll > const Duration(milliseconds: 700)) {
+      _lastScroll = t;
+      final sc = Tour.scroll;
+      if (sc != null && sc.hasClients) {
+        final pos = sc.position;
+        final max = pos.maxScrollExtent;
+        double to;
+        if (!_midDone) {
+          _midDone = true;
+          to = max / 2; // önce sayfanın ortasına git
+        } else if (pos.pixels < max - 1) {
+          to = pos.pixels + 450; // bulunamazsa aşağı doğru ilerle
+        } else {
+          to = 0; // sona geldiyse başa dön, tekrar dene
+        }
+        sc.animateTo(to.clamp(0.0, max).toDouble(), duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
       }
     }
     // Hedef 10 sn bulunamazsa rehber kilitlenmesin: adımı atla
